@@ -1,0 +1,7 @@
+# KB source — multi-repo model G (AionSoft ADR-001)
+# This repo is the FE consumer half. The master KB lives in the BE repo.
+# Sub-agents should read this file and resolve paths relative to kb_path.
+
+kb_path: ../geo_be/knowledgebase
+role: frontend-consumer
+master_repo: geo_be
