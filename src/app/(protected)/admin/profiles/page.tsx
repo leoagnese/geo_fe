@@ -21,7 +21,7 @@
  */
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -106,11 +106,11 @@ export default function AdminProfilesPage() {
   const [successToast, setSuccessToast] = useState<string | null>(null)
   const [errorToast, setErrorToast] = useState<string | null>(null)
 
-  // Client-side role guard
-  if (session && session.user.role !== 'admin') {
-    router.replace('/domains')
-    return null
-  }
+  useEffect(() => {
+    if (session && session.user.role !== 'admin') {
+      router.replace('/domains')
+    }
+  }, [session, router])
 
   const {
     data,
@@ -122,8 +122,6 @@ export default function AdminProfilesPage() {
     queryFn: () => getProfiles(session?.accessToken ?? '', 1, 100),
     enabled: !!session?.accessToken && session.user.role === 'admin',
   })
-
-  const rows: ProfileRow[] = (data?.data ?? []).map((p) => ({ ...p, id: p._id }))
 
   const createMutation = useMutation({
     mutationFn: (formData: CreateProfileForm) =>
@@ -164,6 +162,10 @@ export default function AdminProfilesPage() {
     resolver: zodResolver(CreateProfileSchema),
     defaultValues: { llmProvider: 'openai' },
   })
+
+  if (session && session.user.role !== 'admin') return null
+
+  const rows: ProfileRow[] = (data?.data ?? []).map((p) => ({ ...p, id: p._id }))
 
   const openCreateDrawer = () => {
     setEditingProfile(null)

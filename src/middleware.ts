@@ -4,21 +4,21 @@
  * Unauthenticated users accessing protected routes are redirected to /login
  * where the Keycloak OIDC flow begins. AC-001.
  *
+ * AUTH_DISABLED=true skips auth entirely (dev/UI preview only).
+ *
  * @implements US-001
  * @validates AC-001
  * @spec L1_design/screen-inventory.md §"Auth (SC-001)"
  */
-export { auth as middleware } from '@/lib/auth'
+import { auth } from '@/lib/auth'
+import { NextResponse } from 'next/server'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const middleware: any =
+  process.env.AUTH_DISABLED === 'true' ? () => NextResponse.next() : auth
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths EXCEPT:
-     * - /login (the SSO handoff page)
-     * - /api/auth/* (NextAuth internal endpoints)
-     * - /_next/* (Next.js internals)
-     * - /favicon.ico, /robots.txt etc. (static files)
-     */
     '/((?!login|api/auth|_next/static|_next/image|favicon.ico|robots.txt).*)',
   ],
 }

@@ -1,52 +1,56 @@
-/**
- * SC-001 — Login / SSO handoff page.
- *
- * Thin shell: if the user has no session, triggers signIn('keycloak') immediately.
- * Shows a branded loading state while the OAuth redirect is in-flight.
- * Keycloak handles the actual auth UI — no form is rendered here.
- *
- * States:
- * - Loading: spinner + logo (while redirect runs or session is checked)
- * - Error: "Login fallito" banner (if Keycloak redirects back with ?error=...)
- * - Populated (success): authenticated → redirect to /domains (handled by middleware)
- * - Empty: not applicable — unauthenticated state IS the initial state
- *
- * @implements US-001
- * @validates AC-001, AC-002, AC-003
- * @spec L1_design/screen-inventory.md §"Auth (SC-001)"
- * @spec L1_design/states-and-empty.md §"SC-001"
- * @figma — (Figma file not yet created — see figma-links.md)
- */
 'use client'
 
-import { useEffect } from 'react'
-import { useSession, signIn } from 'next-auth/react'
+import { useState, Suspense } from 'react'
+import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Box from '@mui/material/Box'
-import CircularProgress from '@mui/material/CircularProgress'
 import Typography from '@mui/material/Typography'
-import Alert from '@mui/material/Alert'
+import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
+import Alert from '@mui/material/Alert'
+import CircularProgress from '@mui/material/CircularProgress'
+import InputAdornment from '@mui/material/InputAdornment'
+import IconButton from '@mui/material/IconButton'
+import Visibility from '@mui/icons-material/Visibility'
+import VisibilityOff from '@mui/icons-material/VisibilityOff'
 
-export default function LoginPage() {
-  const { data: session, status } = useSession()
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const errorParam = searchParams.get('error')
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      // Trigger Keycloak OIDC flow immediately
-      void signIn('keycloak', { callbackUrl: '/domains' })
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(
+    errorParam ? 'Login fallito — verifica le credenziali.' : null,
+  )
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!username || !password) return
+
+    setLoading(true)
+    setError(null)
+
+    const result = await signIn('credentials', {
+      username,
+      password,
+      redirect: false,
+    })
+
+    setLoading(false)
+
+    if (result?.error) {
+      setError('Credenziali non valide. Riprova.')
+      return
     }
-    if (status === 'authenticated') {
-      // Already authenticated — redirect to Domains dashboard (SC-010)
-      router.replace('/domains')
-    }
-  }, [status, router])
+
+    router.replace('/domains')
+  }
 
   return (
-    // full-page centered layout per layouts.md §"SC-001"
     <Box
       sx={{
         minHeight: '100vh',
@@ -54,49 +58,108 @@ export default function LoginPage() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: 'background.default', // color.neutral.bg
-        gap: 3,
+        bgcolor: 'background.default',
         px: 2,
       }}
     >
-      {/* Product logo placeholder — replace with <Image> when asset is available */}
-      <Typography
-        variant="h2"
-        color="primary"
-        sx={{ fontWeight: 700, letterSpacing: '-0.5px' }}
+      <Box
+        sx={{
+          width: '100%',
+          maxWidth: 400,
+          bgcolor: 'background.paper',
+          borderRadius: 'var(--geo-radius-lg)',
+          boxShadow: 'var(--geo-shadow-panel)',
+          p: 4,
+        }}
       >
-        Geo-SmartAudit
-      </Typography>
+        <Typography
+          variant="h2"
+          color="primary"
+          sx={{ fontWeight: 700, mb: 0.5, textAlign: 'center' }}
+        >
+          Geo-SmartAudit
+        </Typography>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ textAlign: 'center', mb: 4 }}
+        >
+          AI Visibility Platform
+        </Typography>
 
-      {/* Error state: Keycloak returned an auth error (AC-003) */}
-      {errorParam && (
-        <Box sx={{ maxWidth: 400, width: '100%' }}>
-          <Alert
-            severity="error"
-            action={
-              <Button
-                color="inherit"
-                size="small"
-                onClick={() => void signIn('keycloak', { callbackUrl: '/domains' })}
-              >
-                Riprova
-              </Button>
-            }
-          >
-            Login fallito — riprova o contatta l&apos;amministratore.
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
           </Alert>
-        </Box>
-      )}
+        )}
 
-      {/* Loading state: spinner while redirect is in-flight (AC-001, AC-002) */}
-      {!errorParam && (
-        <>
-          <CircularProgress size={40} color="primary" />
-          <Typography variant="body2" color="text.secondary">
-            Accesso in corso…
-          </Typography>
-        </>
-      )}
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          noValidate
+          sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}
+        >
+          <TextField
+            label="Username o email"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            autoFocus
+            required
+            disabled={loading}
+            fullWidth
+          />
+
+          <TextField
+            label="Password"
+            type={showPassword ? 'text' : 'password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+            disabled={loading}
+            fullWidth
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    onClick={() => setShowPassword((v) => !v)}
+                    edge="end"
+                    size="small"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          <Button
+            type="submit"
+            variant="contained"
+            size="large"
+            fullWidth
+            disabled={loading || !username || !password}
+            sx={{ mt: 1 }}
+          >
+            {loading ? <CircularProgress size={22} color="inherit" /> : 'Accedi'}
+          </Button>
+        </Box>
+      </Box>
     </Box>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Box>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }

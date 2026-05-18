@@ -121,6 +121,7 @@ export interface RunListItem {
   clientKey: string
   profileKey: string
   status: RunStatus
+  runIterations: number
   plannedQueries: number
   doneQueries: number
   errorQueries: number
@@ -246,20 +247,18 @@ export interface UserProfile {
   userId: string
   email: string
   role: 'analyst' | 'admin'
-  clientKeys: string[]
   active: boolean
   createdAt: string
 }
 
 export interface CreateUserDto {
-  userId: string
+  username: string
   email: string
+  password: string
   role: 'analyst' | 'admin'
-  clientKeys: string[]
 }
 
 export interface UpdateUserDto {
-  clientKeys?: string[]
   role?: 'analyst' | 'admin'
   active?: boolean
 }
@@ -354,6 +353,14 @@ export async function updateDomain(
     method: 'PATCH',
     body: JSON.stringify(dto),
   })
+}
+
+/** E-006b — Delete domain. 204 on success; 409 if active runs exist. */
+export async function deleteDomain(
+  token: string,
+  clientKey: string,
+): Promise<void> {
+  await apiFetch<void>(`/domains/${clientKey}`, token, { method: 'DELETE' })
 }
 
 // ──────────────────────────────────────────────────────────────

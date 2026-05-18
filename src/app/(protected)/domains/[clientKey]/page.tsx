@@ -24,7 +24,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
@@ -41,10 +41,17 @@ import TableRow from '@mui/material/TableRow'
 import Paper from '@mui/material/Paper'
 import TablePagination from '@mui/material/TablePagination'
 import Chip from '@mui/material/Chip'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogContentText from '@mui/material/DialogContentText'
+import DialogActions from '@mui/material/DialogActions'
+import Snackbar from '@mui/material/Snackbar'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
+import DeleteIcon from '@mui/icons-material/Delete'
 import StatusChip from '@/components/StatusChip'
-import { getDomain, getRuns, ApiError } from '@/lib/api-client'
+import { getDomain, getRuns, deleteDomain, ApiError } from '@/lib/api-client'
 import type { RunListItem } from '@/lib/api-client'
 
 interface DomainPageProps {
@@ -72,6 +79,21 @@ export default function DomainPage({ params }: DomainPageProps) {
   const router = useRouter()
   const [page, setPage] = useState(0)
   const rowsPerPage = 20
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteErrorToast, setDeleteErrorToast] = useState<string | null>(null)
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteDomain(session?.accessToken ?? '', clientKey),
+    onSuccess: () => router.push('/domains'),
+    onError: (err) => {
+      if (err instanceof ApiError && err.status === 409) {
+        setDeleteErrorToast('Impossibile eliminare: ci sono run attive (running o queued). Cancellale prima.')
+      } else {
+        setDeleteErrorToast('Errore durante l\'eliminazione. Riprova.')
+      }
+      setDeleteDialogOpen(false)
+    },
+  })
 
   const {
     data: domainData,
@@ -141,6 +163,15 @@ export default function DomainPage({ params }: DomainPageProps) {
         )}
 
         <Box sx={{ display: 'flex', gap: 1.5 }}>
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteIcon />}
+            onClick={() => setDeleteDialogOpen(true)}
+            disabled={domainLoading}
+          >
+            Elimina
+          </Button>
           <Button
             variant="outlined"
             startIcon={<EditIcon />}
@@ -340,6 +371,41 @@ export default function DomainPage({ params }: DomainPageProps) {
           />
         </Paper>
       )}
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Eliminare il dominio?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Stai per eliminare <strong>{clientKey}</strong>. Lo storico delle run
+            rimarrà in MongoDB ma il dominio non sarà più accessibile dalla piattaforma.
+            Questa azione non può essere annullata.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleteMutation.isPending}>
+            Annulla
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => deleteMutation.mutate()}
+            disabled={deleteMutation.isPending}
+          >
+            {deleteMutation.isPending ? 'Eliminazione…' : 'Elimina definitivamente'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Error toast */}
+      <Snackbar
+        open={!!deleteErrorToast}
+        onClose={() => setDeleteErrorToast(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert severity="error" onClose={() => setDeleteErrorToast(null)}>
+          {deleteErrorToast}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }

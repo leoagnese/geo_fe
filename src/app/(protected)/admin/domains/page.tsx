@@ -21,6 +21,7 @@
  */
 'use client'
 
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useQuery } from '@tanstack/react-query'
@@ -38,11 +39,11 @@ export default function AdminDomainsPage() {
   const { data: session } = useSession()
   const router = useRouter()
 
-  // Client-side role guard — AC-004
-  if (session && session.user.role !== 'admin') {
-    router.replace('/domains')
-    return null
-  }
+  useEffect(() => {
+    if (session && session.user.role !== 'admin') {
+      router.replace('/domains')
+    }
+  }, [session, router])
 
   // Admin role → getDomains returns all domains (BE applies no filter for admin)
   const {
@@ -55,6 +56,8 @@ export default function AdminDomainsPage() {
     queryFn: () => getDomains(session?.accessToken ?? '', 1, 200),
     enabled: !!session?.accessToken && session.user.role === 'admin',
   })
+
+  if (session && session.user.role !== 'admin') return null
 
   const rows: DomainRow[] = (data?.data ?? []).map((d) => ({ ...d, id: d._id }))
 

@@ -8,21 +8,28 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SessionProvider } from 'next-auth/react'
+import { ThemeProvider } from '@mui/material/styles'
+import CssBaseline from '@mui/material/CssBaseline'
 import { useState, type ReactNode } from 'react'
+import type { Session } from 'next-auth'
+import geoTheme from '@/lib/theme'
 
 interface ProvidersProps {
   children: ReactNode
 }
 
+const DEV_SESSION: Session = {
+  user: { id: 'dev-admin', name: 'Dev Admin', email: 'dev@example.com', role: 'admin' },
+  expires: '2099-01-01',
+  accessToken: 'dev-token',
+}
+
 export default function Providers({ children }: ProvidersProps) {
-  // QueryClient created per-render (not module-level) to avoid shared state
-  // across requests in a server-rendered context (Next.js docs recommendation).
   const [queryClient] = useState(
     () =>
       new QueryClient({
         defaultOptions: {
           queries: {
-            // staleTime: 30s is a sensible default for this dashboard
             staleTime: 30_000,
             retry: 1,
           },
@@ -30,9 +37,17 @@ export default function Providers({ children }: ProvidersProps) {
       }),
   )
 
+  const session =
+    process.env.NEXT_PUBLIC_AUTH_DISABLED === 'true' ? DEV_SESSION : undefined
+
   return (
-    <SessionProvider>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <SessionProvider session={session}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider theme={geoTheme}>
+          <CssBaseline />
+          {children}
+        </ThemeProvider>
+      </QueryClientProvider>
     </SessionProvider>
   )
 }

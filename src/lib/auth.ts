@@ -1,19 +1,17 @@
 /**
- * NextAuth v5 configuration — Keycloak OIDC provider.
+ * NextAuth v5 — Keycloak via Credentials provider (ROPC flow).
  *
- * Passes the Keycloak access_token through to the session so that
- * server components and client components can use it for BE API calls.
+ * The login form lives on the GeoTool FE (SC-001). Credentials are exchanged
+ * directly with Keycloak's token endpoint — no redirect to localhost:8080.
  *
- * @spec L1_design/screen-inventory.md §"Auth (SC-001)"
  * @implements US-001
  * @validates AC-001, AC-002, AC-003
  */
 import NextAuth from 'next-auth'
-import KeycloakProvider from 'next-auth/providers/keycloak'
+import CredentialsProvider from 'next-auth/providers/credentials'
 import type { JWT } from 'next-auth/jwt'
 import type { Session } from 'next-auth'
 
-// Extend the built-in session/jwt types to include our custom fields
 declare module 'next-auth' {
   interface Session {
     accessToken: string
@@ -25,6 +23,12 @@ declare module 'next-auth' {
       role: 'analyst' | 'admin'
     }
     error?: string
+  }
+  interface User {
+    accessToken: string
+    refreshToken: string
+    accessTokenExpires: number
+    role: 'analyst' | 'admin'
   }
 }
 
@@ -38,85 +42,134 @@ declare module 'next-auth/jwt' {
   }
 }
 
-/**
- * Extract the primary realm role from a Keycloak JWT claim.
- * Keycloak stores realm roles in `realm_access.roles[]`.
- */
-function extractRole(token: JWT & { realm_access?: { roles?: string[] } }): 'analyst' | 'admin' {
-  const roles: string[] = token.realm_access?.roles ?? []
-  if (roles.includes('admin')) return 'admin'
-  return 'analyst'
+interface KcPayload {
+  sub: string
+  email?: string
+  preferred_username?: string
+  realm_access?: { roles?: string[] }
+}
+
+function extractRole(payload: KcPayload): 'analyst' | 'admin' {
+  const roles = payload.realm_access?.roles ?? []
+  return roles.includes('admin') ? 'admin' : 'analyst'
+}
+
+function decodeJwt(token: string): KcPayload {
+  return JSON.parse(
+    Buffer.from(token.split('.')[1], 'base64url').toString(),
+  ) as KcPayload
+}
+
+async function refreshAccessToken(token: JWT): Promise<JWT> {
+  try {
+    const res = await fetch(
+      `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: process.env.KEYCLOAK_CLIENT_ID!,
+          client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
+          grant_type: 'refresh_token',
+          refresh_token: token.refreshToken ?? '',
+        }),
+      },
+    )
+    const data = (await res.json()) as {
+      access_token: string
+      refresh_token?: string
+      expires_in: number
+    }
+    if (!res.ok) throw data
+
+    const payload = decodeJwt(data.access_token)
+    return {
+      ...token,
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token ?? token.refreshToken,
+      accessTokenExpires: Date.now() + data.expires_in * 1000,
+      role: extractRole(payload),
+      error: undefined,
+    }
+  } catch {
+    return { ...token, error: 'RefreshAccessTokenError' }
+  }
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
-    KeycloakProvider({
-      clientId: process.env.KEYCLOAK_CLIENT_ID!,
-      clientSecret: process.env.KEYCLOAK_CLIENT_SECRET!,
-      issuer: process.env.KEYCLOAK_ISSUER!,
+    CredentialsProvider({
+      name: 'credentials',
+      credentials: {
+        username: { label: 'Username o email', type: 'text' },
+        password: { label: 'Password', type: 'password' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.username || !credentials?.password) return null
+
+        try {
+          const res = await fetch(
+            `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                client_id: process.env.KEYCLOAK_CLIENT_ID!,
+                client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
+                grant_type: 'password',
+                username: credentials.username as string,
+                password: credentials.password as string,
+              }),
+            },
+          )
+
+          if (!res.ok) return null
+
+          const data = (await res.json()) as {
+            access_token: string
+            refresh_token: string
+            expires_in: number
+          }
+
+          const payload = decodeJwt(data.access_token)
+          const roles = payload.realm_access?.roles ?? []
+          if (!roles.includes('admin') && !roles.includes('analyst')) return null
+
+          return {
+            id: payload.sub,
+            email: payload.email ?? (credentials.username as string),
+            name: payload.preferred_username as string ?? (credentials.username as string),
+            accessToken: data.access_token,
+            refreshToken: data.refresh_token,
+            accessTokenExpires: Date.now() + data.expires_in * 1000,
+            role: extractRole(payload),
+          }
+        } catch {
+          return null
+        }
+      },
     }),
   ],
 
   callbacks: {
-    /**
-     * jwt() — called every time a token is created or refreshed.
-     * On initial sign-in: persists access_token + refresh_token + role.
-     * On subsequent calls: returns the cached token (or refreshes if expired).
-     */
-    async jwt({ token, account, profile }) {
-      // Initial sign-in: account and profile are available
-      if (account && profile) {
-        return {
-          ...token,
-          accessToken: account.access_token,
-          refreshToken: account.refresh_token,
-          accessTokenExpires: account.expires_at ? account.expires_at * 1000 : 0,
-          role: extractRole(token as JWT & { realm_access?: { roles?: string[] } }),
-        }
-      }
-
-      // Token still valid
-      if (Date.now() < (token.accessTokenExpires ?? 0)) {
-        return token
-      }
-
-      // Token expired — attempt refresh
-      try {
-        const url = `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            client_id: process.env.KEYCLOAK_CLIENT_ID!,
-            client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
-            grant_type: 'refresh_token',
-            refresh_token: token.refreshToken ?? '',
-          }),
-        })
-
-        const refreshed = (await response.json()) as {
-          access_token: string
-          refresh_token: string
-          expires_in: number
-        }
-
-        if (!response.ok) throw refreshed
-
-        return {
-          ...token,
-          accessToken: refreshed.access_token,
-          refreshToken: refreshed.refresh_token,
-          accessTokenExpires: Date.now() + refreshed.expires_in * 1000,
-        }
-      } catch {
-        return { ...token, error: 'RefreshAccessTokenError' }
-      }
+    authorized({ auth: session }) {
+      return !!session
     },
 
-    /**
-     * session() — shapes the session object exposed to client code via useSession().
-     * Copies accessToken and role from the JWT into the session.
-     */
+    async jwt({ token, user }) {
+      if (user) {
+        return {
+          ...token,
+          accessToken: user.accessToken,
+          refreshToken: user.refreshToken,
+          accessTokenExpires: user.accessTokenExpires,
+          role: user.role,
+        }
+      }
+      if (Date.now() < (token.accessTokenExpires ?? 0)) return token
+      return refreshAccessToken(token)
+    },
+
     async session({ session, token }) {
       return {
         ...session,

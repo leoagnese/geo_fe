@@ -133,11 +133,15 @@ export default function NewDomainPage() {
     },
     onError: (err) => {
       if (err instanceof ApiError) {
+        if (err.status === 401) {
+          setErrorToast('Sessione scaduta — esci e accedi di nuovo.')
+          return
+        }
         if (err.status === 409) {
           setError('clientKey', { message: 'Questo clientKey è già in uso.' })
           return
         }
-        if (err.status === 422) {
+        if (err.status === 422 || err.status === 400) {
           setErrorToast(`Validazione fallita: ${err.message}`)
           return
         }

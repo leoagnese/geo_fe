@@ -1,26 +1,16 @@
 /**
  * SC-040 — Admin: user management.
  *
- * Table of analyst accounts (email, role, clientKeys[], status active/inactive).
- * Create button opens drawer form: email, role, clientKeys multi-select.
- * Route is 403-guarded for analyst role (US-002). Client-side role check + redirect.
- *
- * States:
- * - Loading: DataGrid skeleton
- * - Error 403 (analyst): "Accesso negato" full-page
- * - Error 500: banner with retry
- * - Empty: "Nessun analyst ancora" DataGrid empty state
- * - Populated: DataGrid + Create drawer
+ * Table of user accounts (email, role, status active/inactive).
+ * Create button opens drawer form: email, role.
+ * Toggle active/inactive inline. Change role inline via select.
  *
  * @implements US-023, US-002
  * @validates AC-037, AC-004
- * @spec L1_design/screen-inventory.md §"SC-040"
- * @spec L1_design/states-and-empty.md §"SC-040"
- * @figma — (Figma file not yet created)
  */
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -40,15 +30,17 @@ import Divider from '@mui/material/Divider'
 import IconButton from '@mui/material/IconButton'
 import CloseIcon from '@mui/icons-material/Close'
 import AddIcon from '@mui/icons-material/Add'
+import Visibility from '@mui/icons-material/Visibility'
+import VisibilityOff from '@mui/icons-material/VisibilityOff'
+import InputAdornment from '@mui/material/InputAdornment'
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
-import StatusChip from '@/components/StatusChip'
 import { getAdminUsers, createAdminUser, updateAdminUser, ApiError, type UserProfile } from '@/lib/api-client'
 
 const CreateUserSchema = z.object({
-  userId: z.string().min(1, 'userId (Keycloak sub) è obbligatorio'),
+  username: z.string().min(1, 'Username obbligatorio').regex(/^[a-z0-9._-]+$/, 'Solo lettere minuscole, numeri, punti, trattini'),
   email: z.string().email('Email non valida'),
+  password: z.string().min(8, 'Almeno 8 caratteri'),
   role: z.enum(['analyst', 'admin']),
-  clientKeys: z.array(z.string()).default([]),
 })
 
 type CreateUserForm = z.infer<typeof CreateUserSchema>
@@ -63,24 +55,17 @@ export default function AdminUsersPage() {
   const [successToast, setSuccessToast] = useState<string | null>(null)
   const [errorToast, setErrorToast] = useState<string | null>(null)
 
-  // Client-side role guard — AC-004
-  if (session && session.user.role !== 'admin') {
-    router.replace('/domains')
-    return null
-  }
+  useEffect(() => {
+    if (session && session.user.role !== 'admin') {
+      router.replace('/domains')
+    }
+  }, [session, router])
 
-  const {
-    data,
-    isLoading,
-    isError,
-    refetch,
-  } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-users'],
     queryFn: () => getAdminUsers(session?.accessToken ?? ''),
     enabled: !!session?.accessToken && session.user.role === 'admin',
   })
-
-  const rows: UserRow[] = (data?.data ?? []).map((u) => ({ ...u, id: u._id }))
 
   const createMutation = useMutation({
     mutationFn: (formData: CreateUserForm) =>
@@ -99,6 +84,16 @@ export default function AdminUsersPage() {
     },
   })
 
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: 'analyst' | 'admin' }) =>
+      updateAdminUser(session?.accessToken ?? '', userId, { role }),
+    onSuccess: () => {
+      setSuccessToast('Ruolo aggiornato.')
+      void queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+    },
+    onError: () => setErrorToast('Operazione fallita. Riprova.'),
+  })
+
   const toggleActiveMutation = useMutation({
     mutationFn: ({ userId, active }: { userId: string; active: boolean }) =>
       updateAdminUser(session?.accessToken ?? '', userId, { active }),
@@ -109,18 +104,16 @@ export default function AdminUsersPage() {
     onError: () => setErrorToast('Operazione fallita. Riprova.'),
   })
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    formState: { errors },
-  } = useForm<CreateUserForm>({
+  const [showPassword, setShowPassword] = useState(false)
+  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<CreateUserForm>({
     resolver: zodResolver(CreateUserSchema),
-    defaultValues: { role: 'analyst', clientKeys: [] },
+    defaultValues: { role: 'analyst' },
   })
 
-  // Error 403 at API level (belt-and-suspenders — middleware already blocks)
+  if (session && session.user.role !== 'admin') return null
+
+  const rows: UserRow[] = (data?.data ?? []).map((u) => ({ ...u, id: u._id }))
+
   if (isError) {
     return (
       <Box sx={{ textAlign: 'center', py: 8 }}>
@@ -139,22 +132,24 @@ export default function AdminUsersPage() {
     {
       field: 'role',
       headerName: 'Ruolo',
-      width: 110,
+      width: 140,
       renderCell: (params) => (
-        <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
-          {params.value}
-        </Typography>
-      ),
-    },
-    {
-      field: 'clientKeys',
-      headerName: 'Domini assegnati',
-      flex: 1,
-      minWidth: 200,
-      renderCell: (params) => (
-        <Typography variant="body2" noWrap>
-          {(params.value as string[]).join(', ') || '—'}
-        </Typography>
+        <TextField
+          select
+          size="small"
+          value={params.value as string}
+          variant="standard"
+          onChange={(e) => {
+            updateRoleMutation.mutate({
+              userId: params.row.userId,
+              role: e.target.value as 'analyst' | 'admin',
+            })
+          }}
+          sx={{ minWidth: 110 }}
+        >
+          <MenuItem value="analyst">Analyst</MenuItem>
+          <MenuItem value="admin">Admin</MenuItem>
+        </TextField>
       ),
     },
     {
@@ -178,31 +173,22 @@ export default function AdminUsersPage() {
 
   return (
     <Box>
-      <Box
-        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}
-      >
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
         <Typography variant="h1">Gestione utenti</Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => {
-            reset()
-            setDrawerOpen(true)
-          }}
+          onClick={() => { reset(); setDrawerOpen(true) }}
           disabled={isLoading}
         >
-          Crea analyst
+          Crea utente
         </Button>
       </Box>
 
       {isError && (
         <Alert
           severity="error"
-          action={
-            <Button color="inherit" size="small" onClick={() => void refetch()}>
-              Riprova
-            </Button>
-          }
+          action={<Button color="inherit" size="small" onClick={() => void refetch()}>Riprova</Button>}
           sx={{ mb: 2 }}
         >
           Impossibile caricare gli utenti. Riprova.
@@ -217,16 +203,9 @@ export default function AdminUsersPage() {
           disableRowSelectionOnClick
           slots={{
             noRowsOverlay: () => (
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  height: '100%',
-                }}
-              >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                 <Typography color="text.secondary">
-                  Nessun analyst ancora — crea il primo account.
+                  Nessun utente ancora — crea il primo account.
                 </Typography>
               </Box>
             ),
@@ -235,17 +214,15 @@ export default function AdminUsersPage() {
         />
       </Box>
 
-      {/* ── Create user drawer (480px per layouts.md) ── */}
+      {/* Create user drawer */}
       <Drawer
         anchor="right"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         PaperProps={{ sx: { width: { xs: '100%', sm: 480 }, p: 3 } }}
       >
-        <Box
-          sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}
-        >
-          <Typography variant="h2">Nuovo analyst</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+          <Typography variant="h2">Nuovo utente</Typography>
           <IconButton onClick={() => setDrawerOpen(false)}>
             <CloseIcon />
           </IconButton>
@@ -259,10 +236,11 @@ export default function AdminUsersPage() {
           sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}
         >
           <TextField
-            label="Keycloak userId (sub)"
-            {...register('userId')}
-            error={!!errors.userId}
-            helperText={errors.userId?.message}
+            label="Username"
+            {...register('username')}
+            error={!!errors.username}
+            helperText={errors.username?.message ?? 'Solo lettere minuscole, numeri, punti, trattini'}
+            InputProps={{ sx: { fontFamily: 'var(--geo-font-mono)' } }}
           />
           <TextField
             label="Email"
@@ -270,6 +248,22 @@ export default function AdminUsersPage() {
             {...register('email')}
             error={!!errors.email}
             helperText={errors.email?.message}
+          />
+          <TextField
+            label="Password"
+            type={showPassword ? 'text' : 'password'}
+            {...register('password')}
+            error={!!errors.password}
+            helperText={errors.password?.message ?? 'Almeno 8 caratteri'}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setShowPassword((v) => !v)} edge="end">
+                    {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
           />
           <Controller
             name="role"
@@ -293,7 +287,6 @@ export default function AdminUsersPage() {
         </Box>
       </Drawer>
 
-      {/* Toasts */}
       <Snackbar open={!!successToast} autoHideDuration={4000} onClose={() => setSuccessToast(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
         <Alert severity="success" onClose={() => setSuccessToast(null)}>{successToast}</Alert>

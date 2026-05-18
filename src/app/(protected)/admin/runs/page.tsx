@@ -19,7 +19,7 @@
  */
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useQuery } from '@tanstack/react-query'
@@ -44,11 +44,11 @@ export default function AdminRunsPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
 
-  // Client-side role guard — AC-004
-  if (session && session.user.role !== 'admin') {
-    router.replace('/domains')
-    return null
-  }
+  useEffect(() => {
+    if (session && session.user.role !== 'admin') {
+      router.replace('/domains')
+    }
+  }, [session, router])
 
   const {
     data,
@@ -61,6 +61,8 @@ export default function AdminRunsPage() {
       getAdminRuns(session?.accessToken ?? '', { page: page + 1, limit: PAGE_SIZE }),
     enabled: !!session?.accessToken && session.user.role === 'admin',
   })
+
+  if (session && session.user.role !== 'admin') return null
 
   const allRows: AdminRunGridRow[] = (data?.data ?? []).map((r) => ({ ...r, id: r.runId }))
 

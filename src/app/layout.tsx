@@ -9,9 +9,6 @@
  */
 import type { Metadata } from 'next'
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v14-appRouter'
-import { ThemeProvider } from '@mui/material/styles'
-import CssBaseline from '@mui/material/CssBaseline'
-import geoTheme from '@/lib/theme'
 import Providers from './providers'
 
 export const metadata: Metadata = {
@@ -24,10 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="it">
       <body>
         <AppRouterCacheProvider>
-          <ThemeProvider theme={geoTheme}>
-            <CssBaseline />
-            <Providers>{children}</Providers>
-          </ThemeProvider>
+          <Providers>{children}</Providers>
         </AppRouterCacheProvider>
       </body>
     </html>
