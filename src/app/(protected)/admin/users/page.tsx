@@ -1,9 +1,8 @@
 /**
  * SC-040 — Admin: user management.
  *
- * Table of user accounts (email, role, status active/inactive).
- * Create button opens drawer form: email, role.
- * Toggle active/inactive inline. Change role inline via select.
+ * Table of user accounts (email, role). Create button opens drawer.
+ * Change role inline via select. Delete analyst via icon button + confirm dialog.
  *
  * @implements US-023, US-002
  * @validates AC-037, AC-004
@@ -23,18 +22,26 @@ import Button from '@mui/material/Button'
 import Drawer from '@mui/material/Drawer'
 import TextField from '@mui/material/TextField'
 import MenuItem from '@mui/material/MenuItem'
-import Switch from '@mui/material/Switch'
 import Alert from '@mui/material/Alert'
 import Snackbar from '@mui/material/Snackbar'
 import Divider from '@mui/material/Divider'
 import IconButton from '@mui/material/IconButton'
 import CloseIcon from '@mui/icons-material/Close'
 import AddIcon from '@mui/icons-material/Add'
+import DeleteIcon from '@mui/icons-material/Delete'
 import Visibility from '@mui/icons-material/Visibility'
 import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import InputAdornment from '@mui/material/InputAdornment'
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
-import { getAdminUsers, createAdminUser, updateAdminUser, ApiError, type UserProfile } from '@/lib/api-client'
+import ConfirmDialog from '@/components/ConfirmDialog'
+import {
+  getAdminUsers,
+  createAdminUser,
+  updateAdminUser,
+  deleteAdminUser,
+  ApiError,
+  type UserProfile,
+} from '@/lib/api-client'
 
 const CreateUserSchema = z.object({
   username: z.string().min(1, 'Username obbligatorio').regex(/^[a-z0-9._-]+$/, 'Solo lettere minuscole, numeri, punti, trattini'),
@@ -54,6 +61,7 @@ export default function AdminUsersPage() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [successToast, setSuccessToast] = useState<string | null>(null)
   const [errorToast, setErrorToast] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ userId: string; email: string } | null>(null)
 
   useEffect(() => {
     if (session && session.user.role !== 'admin') {
@@ -94,14 +102,17 @@ export default function AdminUsersPage() {
     onError: () => setErrorToast('Operazione fallita. Riprova.'),
   })
 
-  const toggleActiveMutation = useMutation({
-    mutationFn: ({ userId, active }: { userId: string; active: boolean }) =>
-      updateAdminUser(session?.accessToken ?? '', userId, { active }),
+  const deleteMutation = useMutation({
+    mutationFn: (userId: string) => deleteAdminUser(session?.accessToken ?? '', userId),
     onSuccess: () => {
-      setSuccessToast('Stato utente aggiornato.')
+      setDeleteTarget(null)
+      setSuccessToast('Utente eliminato.')
       void queryClient.invalidateQueries({ queryKey: ['admin-users'] })
     },
-    onError: () => setErrorToast('Operazione fallita. Riprova.'),
+    onError: () => {
+      setDeleteTarget(null)
+      setErrorToast('Eliminazione fallita. Riprova.')
+    },
   })
 
   const [showPassword, setShowPassword] = useState(false)
@@ -153,20 +164,20 @@ export default function AdminUsersPage() {
       ),
     },
     {
-      field: 'active',
-      headerName: 'Attivo',
-      width: 100,
+      field: 'actions',
+      headerName: '',
+      width: 60,
+      sortable: false,
+      disableColumnMenu: true,
       renderCell: (params) => (
-        <Switch
-          checked={params.value as boolean}
+        <IconButton
           size="small"
-          onChange={(e) => {
-            toggleActiveMutation.mutate({
-              userId: params.row.userId,
-              active: e.target.checked,
-            })
-          }}
-        />
+          color="error"
+          onClick={() => setDeleteTarget({ userId: params.row.userId, email: params.row.email })}
+          aria-label={`Elimina ${params.row.email}`}
+        >
+          <DeleteIcon fontSize="small" />
+        </IconButton>
       ),
     },
   ]
@@ -286,6 +297,17 @@ export default function AdminUsersPage() {
           </Box>
         </Box>
       </Drawer>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Elimina utente"
+        description={`Eliminare definitivamente l'account di ${deleteTarget?.email ?? ''}? L'operazione non è reversibile.`}
+        confirmLabel="Elimina"
+        severity="error"
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.userId)}
+        onCancel={() => setDeleteTarget(null)}
+      />
 
       <Snackbar open={!!successToast} autoHideDuration={4000} onClose={() => setSuccessToast(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>

@@ -544,3 +544,11 @@ export async function updateAdminUser(
     body: JSON.stringify(dto),
   })
 }
+
+/** E-023 — Admin: delete user (Keycloak + MongoDB). 204 on success. */
+export async function deleteAdminUser(
+  token: string,
+  userId: string,
+): Promise<void> {
+  await apiFetch<void>(`/admin/users/${userId}`, token, { method: 'DELETE' })
+}

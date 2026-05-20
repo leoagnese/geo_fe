@@ -35,7 +35,6 @@ import AdminIcon from '@mui/icons-material/AdminPanelSettings'
 import PeopleIcon from '@mui/icons-material/People'
 import RunIcon from '@mui/icons-material/PlayCircle'
 import ProfileIcon from '@mui/icons-material/Tune'
-import DomainsAdminIcon from '@mui/icons-material/Storage'
 
 const DRAWER_WIDTH = 240
 
@@ -54,7 +53,6 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
   { label: 'Utenti', path: '/admin/users', icon: <PeopleIcon />, adminOnly: true },
   { label: 'Run globali', path: '/admin/runs', icon: <RunIcon />, adminOnly: true },
   { label: 'Profili LLM', path: '/admin/profiles', icon: <ProfileIcon />, adminOnly: true },
-  { label: 'Tutti i domini', path: '/admin/domains', icon: <DomainsAdminIcon />, adminOnly: true },
 ]
 
 interface AppShellProps {
