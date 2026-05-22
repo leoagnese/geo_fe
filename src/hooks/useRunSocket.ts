@@ -79,6 +79,7 @@ function resolveWsUrl(): string {
 export function useRunSocket(
   runId: string | null,
   enabled: boolean,
+  token?: string,
 ): UseRunSocketReturn {
   const [connected, setConnected] = useState(false)
   const [logs, setLogs] = useState<Array<{ phase: string; message: string; ts: string }>>([])
@@ -100,6 +101,7 @@ export function useRunSocket(
     const socket = io(`${wsUrl}/runs`, {
       reconnectionAttempts: 10,
       reconnectionDelay: 1_000,
+      auth: token ? { token } : undefined,
     })
 
     socketRef.current = socket
@@ -168,7 +170,7 @@ export function useRunSocket(
       // Reset state so a re-enable starts fresh
       setConnected(false)
     }
-  }, [runId, enabled])
+  }, [runId, enabled, token])
 
   return { connected, logs, progress, currentPhase, terminalEvent }
 }

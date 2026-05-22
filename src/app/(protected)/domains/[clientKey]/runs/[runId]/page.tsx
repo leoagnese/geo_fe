@@ -296,6 +296,7 @@ export default function RunMonitorPage({ params }: RunMonitorPageProps) {
   const { connected, logs, progress, currentPhase, terminalEvent } = useRunSocket(
     runId,
     socketEnabled,
+    session?.accessToken ?? undefined,
   )
 
   // Suppress stale-poll warning when socket is connected
