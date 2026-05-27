@@ -311,13 +311,16 @@ export default function RunMonitorPage({ params }: RunMonitorPageProps) {
     }
   }, [terminalEvent, queryClient, clientKey, runId])
 
-  // Auto-redirect to results/overview when status transitions to done (AC-017)
-  // — triggered by HTTP data OR by socket terminalEvent, whichever arrives first
+  // Auto-redirect to results/overview when HTTP confirms status === 'done' (AC-017)
+  // NOTE: intentionally uses only run?.status (HTTP-confirmed), NOT terminalEvent.
+  // The WebSocket run:done event triggers invalidateQueries (above), which causes
+  // a refetch; the redirect fires only after that refetch returns status='done'.
+  // This prevents navigating to /results before the BE has committed all query data.
   useEffect(() => {
-    if (run?.status === 'done' || terminalEvent?.status === 'done') {
+    if (run?.status === 'done') {
       router.replace(`/domains/${clientKey}/runs/${runId}/results/overview`)
     }
-  }, [run?.status, terminalEvent?.status, clientKey, runId, router])
+  }, [run?.status, clientKey, runId, router])
 
   // Cleanup stale timer on unmount
   useEffect(() => {

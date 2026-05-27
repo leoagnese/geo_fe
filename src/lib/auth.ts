@@ -99,6 +99,10 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET,
   trustHost: true,
+  // Session capped to Keycloak ssoSessionMaxLifespan (10h). Beyond the
+  // Keycloak refresh-token life the session can't be renewed anyway, so the
+  // cookie must not outlive it. Idle expiry (1h) is caught via session.error.
+  session: { strategy: 'jwt', maxAge: 36000 },
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -155,7 +159,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
   callbacks: {
     authorized({ auth: session }) {
-      return !!session
+      return !!session && session.error !== 'RefreshAccessTokenError'
     },
 
     async jwt({ token, user }) {
