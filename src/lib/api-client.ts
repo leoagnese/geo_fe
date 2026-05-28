@@ -61,6 +61,7 @@ export interface Domain {
   brand: string
   aliases?: string[]
   settori?: string[]
+  keywords?: string[]
   createdAt: string
   updatedAt?: string
 }
@@ -71,12 +72,14 @@ export interface CreateDomainDto {
   brand: string
   aliases?: string[]
   settori?: string[]
+  keywords?: string[]
 }
 
 export interface UpdateDomainDto {
   brand?: string
   aliases?: string[]
   settori?: string[]
+  keywords?: string[]
 }
 
 // ──────────────────────────────────────────────────────────────

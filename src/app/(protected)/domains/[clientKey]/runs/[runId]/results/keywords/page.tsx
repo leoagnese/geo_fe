@@ -1,14 +1,15 @@
 /**
- * SC-032 — Keyword breakdown table.
+ * SC-032 — Keyword breakdown.
  *
- * DataGrid: keyword, queries executed, visibility %, avgRank, linkRate %, target mentions.
- * Sortable. Default sort: visibility % descending.
+ * Primary view: horizontal bar chart sorted by visibility % descending (top 25 keywords).
+ * Bar length communicates visibility %; single color #1565C0 (color.brand.primary).
+ * Detailed data: Accordion (collapsed by default) containing the full DataGrid.
  *
  * States:
- * - Loading: DataGrid skeleton
- * - Error: inline error
- * - Empty: "Nessuna keyword trovata" DataGrid empty state
- * - Populated: sortable DataGrid
+ * - Loading: Skeleton height 320
+ * - Error: inline error with retry
+ * - Empty: "Nessuna keyword trovata" Typography
+ * - Populated: horizontal BarChart + collapsed Accordion with DataGrid
  *
  * @implements US-015
  * @validates AC-024
@@ -24,6 +25,12 @@ import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
 import Alert from '@mui/material/Alert'
+import Skeleton from '@mui/material/Skeleton'
+import Accordion from '@mui/material/Accordion'
+import AccordionSummary from '@mui/material/AccordionSummary'
+import AccordionDetails from '@mui/material/AccordionDetails'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import { BarChart } from '@mui/x-charts/BarChart'
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
 import { getRunKeywords, type KeywordBreakdownRow } from '@/lib/api-client'
 
@@ -32,6 +39,11 @@ interface KeywordsPageProps {
 }
 
 type KeywordRow = KeywordBreakdownRow & { id: string }
+
+/** Truncate a string to maxLen characters, appending ellipsis if needed */
+function truncate(s: string, maxLen: number): string {
+  return s.length > maxLen ? `${s.slice(0, maxLen)}…` : s
+}
 
 export default function KeywordsPage({ params }: KeywordsPageProps) {
   const { clientKey, runId } = params
@@ -48,10 +60,24 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
     enabled: !!session?.accessToken,
   })
 
-  const rows: KeywordRow[] = (data?.data ?? []).map((r) => ({
+  const allRows: KeywordRow[] = (data?.data ?? []).map((r) => ({
     ...r,
     id: r.keyword,
   }))
+
+  // Top 25 keywords by visibility, descending — chart dataset
+  const chartRows = [...allRows]
+    .sort((a, b) => b.visibilityPct - a.visibilityPct)
+    .slice(0, 25)
+
+  // Chart dimensions — 36px per keyword row, minimum 240px
+  const chartHeight = Math.max(240, chartRows.length * 36)
+
+  // BarChart expects arrays of values aligned with yAxis categories
+  const chartLabels = chartRows.map((r) => truncate(r.keyword, 30))
+  const chartValues = chartRows.map((r) =>
+    parseFloat((r.visibilityPct * 100).toFixed(1))
+  )
 
   const columns: GridColDef<KeywordRow>[] = [
     { field: 'keyword', headerName: 'Keyword', flex: 1, minWidth: 200, sortable: true },
@@ -101,6 +127,7 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
         Breakdown per keyword
       </Typography>
 
+      {/* ── Error state ── */}
       {isError && (
         <Alert
           severity="error"
@@ -115,36 +142,95 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
         </Alert>
       )}
 
-      <Box sx={{ height: 520 }}>
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          loading={isLoading}
-          disableRowSelectionOnClick
-          initialState={{
-            sorting: { sortModel: [{ field: 'visibilityPct', sort: 'desc' }] },
-          }}
-          slots={{
-            noRowsOverlay: () => (
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  height: '100%',
-                }}
-              >
-                <Typography color="text.secondary">
-                  Nessuna keyword trovata per questa run.
-                </Typography>
+      {/* ── Loading state ── */}
+      {isLoading && (
+        <Skeleton variant="rounded" height={320} sx={{ mb: 3 }} />
+      )}
+
+      {/* ── Empty state ── */}
+      {!isLoading && !isError && allRows.length === 0 && (
+        <Typography color="text.secondary" sx={{ mb: 3 }}>
+          Nessuna keyword trovata.
+        </Typography>
+      )}
+
+      {/* ── Populated state: horizontal BarChart + Accordion DataGrid ── */}
+      {!isLoading && !isError && allRows.length > 0 && (
+        <>
+          {/* Horizontal bar chart — top 25 keywords by visibility */}
+          <Box sx={{ mb: 3, overflowX: 'auto' }}>
+            <BarChart
+              layout="horizontal"
+              yAxis={[
+                {
+                  data: chartLabels,
+                  scaleType: 'band',
+                  // Y axis shows keyword names — no % sign needed here per spec
+                },
+              ]}
+              xAxis={[
+                {
+                  min: 0,
+                  max: 100,
+                  valueFormatter: (v: number) => `${v}%`,
+                },
+              ]}
+              series={[
+                {
+                  data: chartValues,
+                  color: '#1565C0', // color.brand.primary — bar length communicates value
+                  label: 'Visibility %',
+                  valueFormatter: (v: number | null) =>
+                    v !== null ? `${v.toFixed(1)}%` : '',
+                },
+              ]}
+              height={chartHeight}
+              margin={{ left: 180, right: 60, top: 16, bottom: 40 }}
+            />
+          </Box>
+
+          {/* Accordion with full DataGrid — collapsed by default */}
+          <Accordion defaultExpanded={false} sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="body2" fontWeight={600}>
+                Dati dettagliati
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ p: 0 }}>
+              <Box sx={{ height: 520 }}>
+                <DataGrid
+                  rows={allRows}
+                  columns={columns}
+                  disableRowSelectionOnClick
+                  initialState={{
+                    sorting: { sortModel: [{ field: 'visibilityPct', sort: 'desc' }] },
+                  }}
+                  slots={{
+                    noRowsOverlay: () => (
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          height: '100%',
+                        }}
+                      >
+                        <Typography color="text.secondary">
+                          Nessuna keyword trovata per questa run.
+                        </Typography>
+                      </Box>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiDataGrid-columnHeaders': { bgcolor: 'background.default' },
+                    border: 'none',
+                  }}
+                />
               </Box>
-            ),
-          }}
-          sx={{
-            '& .MuiDataGrid-columnHeaders': { bgcolor: 'background.default' },
-          }}
-        />
-      </Box>
+            </AccordionDetails>
+          </Accordion>
+        </>
+      )}
     </Box>
   )
 }

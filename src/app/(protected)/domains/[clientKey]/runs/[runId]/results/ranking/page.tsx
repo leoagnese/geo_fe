@@ -1,16 +1,18 @@
 /**
  * SC-031 — Brand ranking table.
  *
- * "Focus sul target" MUI Card above DataGrid (AC-023).
+ * "Focus sul target" MUI Card above chart and DataGrid (AC-023).
+ * Horizontal BarChart: top 8 brands (target + top 7 competitors) by aiVisibilityScore.
+ * Target brand bar highlighted in color.score.high (#2E7D32); competitors in color.brand.primary (#1565C0).
  * DataGrid: rank, brand, AI Visibility Score (colored), mentions,
  * avgRank, linkRate, sentiment. Paginated server-side.
  * Target brand excluded from grid and shown in separate card (AC-023).
  *
  * States:
- * - Loading: DataGrid skeleton rows
+ * - Loading: Skeleton height 240 + DataGrid skeleton rows
  * - Error: full-width error replacing grid
  * - Empty (no competitors): DataGrid empty state
- * - Populated: DataGrid with colored score column
+ * - Populated: BarChart (if >= 1 competitor) + DataGrid with colored score column
  *
  * @implements US-014
  * @validates AC-022, AC-023
@@ -29,9 +31,11 @@ import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Alert from '@mui/material/Alert'
+import Skeleton from '@mui/material/Skeleton'
+import { BarChart } from '@mui/x-charts/BarChart'
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
 import { getRunRanking, type BrandRankRow } from '@/lib/api-client'
-import { getScoreColor } from '@/lib/theme'
+import { getScoreColor, geoColors } from '@/lib/theme'
 
 interface RankingPageProps {
   params: { clientKey: string; runId: string }
@@ -41,6 +45,11 @@ interface RankingPageProps {
 type RankingRow = BrandRankRow & { id: number }
 
 const PAGE_SIZE = 50
+
+/** Truncate a string to maxLen characters, appending ellipsis if needed */
+function truncate(s: string, maxLen: number): string {
+  return s.length > maxLen ? `${s.slice(0, maxLen)}…` : s
+}
 
 export default function RankingPage({ params }: RankingPageProps) {
   const { clientKey, runId } = params
@@ -72,6 +81,48 @@ export default function RankingPage({ params }: RankingPageProps) {
     id: r.rank,
   }))
   const totalCompetitors = data?.meta?.total ?? 0
+
+  // ── Mini chart: top 8 brands (target first, then top 7 competitors by score) ──
+  // Build up to 8 entries for the chart — target + up to 7 competitors
+  const top7Competitors = [...competitors]
+    .sort((a, b) => b.aiVisibilityScore - a.aiVisibilityScore)
+    .slice(0, 7)
+
+  interface ChartEntry {
+    name: string
+    score: number
+    isTarget: boolean
+  }
+
+  const chartEntries: ChartEntry[] = []
+  if (targetBrandRow) {
+    chartEntries.push({
+      name: targetBrandRow.brand,
+      score: targetBrandRow.aiVisibilityScore,
+      isTarget: true,
+    })
+  }
+  top7Competitors.forEach((c) => {
+    chartEntries.push({
+      name: c.brand,
+      score: c.aiVisibilityScore,
+      isTarget: false,
+    })
+  })
+
+  // Show chart only when data is loaded and there is at least 1 competitor
+  const showChart = !isLoading && !isError && competitors.length >= 1 && chartEntries.length > 0
+
+  const chartHeight = Math.max(200, chartEntries.length * 36)
+
+  const chartLabels = chartEntries.map((e) => truncate(e.name, 25))
+  const chartValues = chartEntries.map((e) => parseFloat(e.score.toFixed(1)))
+  // Per-bar colors: target gets score.high green, competitors get brand.primary blue
+  const chartColors = chartEntries.map((e) =>
+    e.isTarget
+      ? geoColors.score.high   // color.score.high → #2E7D32
+      : '#1565C0'               // color.brand.primary
+  )
 
   const columns: GridColDef<RankingRow>[] = [
     { field: 'rank', headerName: '#', width: 60, sortable: true },
@@ -137,7 +188,7 @@ export default function RankingPage({ params }: RankingPageProps) {
 
   return (
     <Box>
-      {/* Error state */}
+      {/* ── Error state ── */}
       {isError && (
         <Alert
           severity="error"
@@ -152,7 +203,7 @@ export default function RankingPage({ params }: RankingPageProps) {
         </Alert>
       )}
 
-      {/* Focus sul target card — AC-023 */}
+      {/* ── Focus sul target card — AC-023 ── */}
       {targetBrandRow && (
         <Card sx={{ mb: 3, borderLeft: '4px solid', borderColor: 'primary.main' }}>
           <CardContent>
@@ -196,10 +247,83 @@ export default function RankingPage({ params }: RankingPageProps) {
         </Card>
       )}
 
-      {/* Competitors DataGrid — AC-022 */}
+      {/* ── Competitor heading ── */}
       <Typography variant="h2" sx={{ mb: 2 }}>
         Competitor
       </Typography>
+
+      {/* ── Loading skeleton for chart ── */}
+      {isLoading && (
+        <Skeleton variant="rounded" height={240} sx={{ mb: 3 }} />
+      )}
+
+      {/* ── Horizontal BarChart: top 8 brands by aiVisibilityScore ── */}
+      {showChart && (
+        <Box sx={{ mb: 3, overflowX: 'auto' }}>
+          <BarChart
+            layout="horizontal"
+            yAxis={[
+              {
+                data: chartLabels,
+                scaleType: 'band',
+                // Y axis shows brand names — no % sign needed here per spec
+              },
+            ]}
+            xAxis={[
+              {
+                min: 0,
+                max: 100,
+                valueFormatter: (v: number) => `${v}%`,
+              },
+            ]}
+            series={[
+              {
+                data: chartValues,
+                // Per-bar coloring: target = score.high green, competitors = brand.primary blue.
+                // @mui/x-charts v9 supports per-item color via the `color` field in each data point.
+                color: '#1565C0', // fallback; individual colors set via colorMap below
+                label: 'AI Visibility Score',
+                valueFormatter: (v: number | null) =>
+                  v !== null ? `${v.toFixed(1)}%` : '',
+              },
+            ]}
+            colors={chartColors}
+            height={chartHeight}
+            margin={{ left: 180, right: 60, top: 16, bottom: 40 }}
+          />
+          {/* Legend below chart explaining target vs competitor color coding */}
+          <Box sx={{ display: 'flex', gap: 3, mt: 1, pl: '180px' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <Box
+                sx={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  bgcolor: geoColors.score.high, // color.score.high → #2E7D32
+                }}
+              />
+              <Typography variant="caption" color="text.secondary">
+                Target brand
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <Box
+                sx={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  bgcolor: '#1565C0', // color.brand.primary
+                }}
+              />
+              <Typography variant="caption" color="text.secondary">
+                Competitor
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      )}
+
+      {/* ── Competitors DataGrid — AC-022 ── */}
       <Box sx={{ height: 520 }}>
         <DataGrid
           rows={competitors}

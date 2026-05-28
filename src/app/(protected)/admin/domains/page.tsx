@@ -31,7 +31,7 @@ import Button from '@mui/material/Button'
 import Alert from '@mui/material/Alert'
 import Chip from '@mui/material/Chip'
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
-import { getDomains, type Domain } from '@/lib/api-client'
+import { getDomains, type Domain, type ApiSuccess } from '@/lib/api-client'
 
 type DomainRow = Domain & { id: string }
 
@@ -51,10 +51,10 @@ export default function AdminDomainsPage() {
     isLoading,
     isError,
     refetch,
-  } = useQuery({
+  } = useQuery<ApiSuccess<Domain[]>>({
     queryKey: ['admin-domains'],
     queryFn: () => getDomains(session?.accessToken ?? '', 1, 200),
-    enabled: !!session?.accessToken && session.user.role === 'admin',
+    enabled: !!session?.accessToken && session?.user?.role === 'admin',
   })
 
   if (session && session.user.role !== 'admin') return null
@@ -126,7 +126,7 @@ export default function AdminDomainsPage() {
         <Alert
           severity="error"
           action={
-            <Button color="inherit" size="small" onClick={() => void refetch()}>
+            <Button color="inherit" size="small" onClick={() => void (refetch as () => void)()}>
               Riprova
             </Button>
           }

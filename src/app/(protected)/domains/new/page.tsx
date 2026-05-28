@@ -53,6 +53,7 @@ const CreateDomainSchema = z.object({
   brand: z.string().min(1, 'Brand è obbligatorio'),
   aliases: z.array(z.string()).default([]),
   settori: z.array(z.string()).default([]),
+  keywords: z.array(z.string()).default([]),
 })
 
 type CreateDomainForm = z.infer<typeof CreateDomainSchema>
@@ -79,7 +80,7 @@ export default function NewDomainPage() {
     formState: { errors, isSubmitting },
   } = useForm<CreateDomainForm>({
     resolver: zodResolver(CreateDomainSchema),
-    defaultValues: { aliases: [], settori: [] },
+    defaultValues: { aliases: [], settori: [], keywords: [] },
   })
 
   const clientKeyValue = watch('clientKey')
@@ -123,6 +124,7 @@ export default function NewDomainPage() {
         brand: data.brand,
         aliases: data.aliases,
         settori: data.settori,
+        keywords: data.keywords,
       }),
     onSuccess: (result) => {
       setSuccessToast(true)
@@ -231,6 +233,21 @@ export default function NewDomainPage() {
               value={field.value}
               onChange={field.onChange}
               placeholder="Es. food-beverage"
+            />
+          )}
+        />
+
+        {/* keywords — usate da n8n come base per la generazione delle query */}
+        <Controller
+          name="keywords"
+          control={control}
+          render={({ field }) => (
+            <TagInput
+              label="Keyword (facoltativo)"
+              value={field.value}
+              onChange={field.onChange}
+              placeholder="Es. caffè espresso, macchina caffè — premi Invio"
+              helperText="Keyword di riferimento per l'analisi AI Visibility. Usate da n8n per generare le query di audit."
             />
           )}
         />

@@ -10,7 +10,7 @@
  * - Loading: skeleton hero KPI + skeleton report links
  * - Error (data load): full-width error with retry
  * - Empty (zero visibility — AC-021): score "0" in color.score.low + explanatory caption
- * - Populated: score hero + metric chips + sentiment bar + drive links
+ * - Populated: score hero + metric chips + sentiment donut chart + drive links
  *
  * @implements US-013, US-017
  * @validates AC-020, AC-021, AC-026, AC-027
@@ -31,8 +31,10 @@ import Alert from '@mui/material/Alert'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import DownloadIcon from '@mui/icons-material/Download'
-import { ScoreHero, MetricChip, SentimentBar } from '@/components/KpiCards'
+import { PieChart } from '@mui/x-charts/PieChart'
+import { ScoreHero, MetricChip } from '@/components/KpiCards'
 import { getRunKpis, getRunReport } from '@/lib/api-client'
+import { geoColors } from '@/lib/theme'
 
 interface OverviewPageProps {
   params: { clientKey: string; runId: string }
@@ -66,6 +68,30 @@ export default function OverviewPage({ params }: OverviewPageProps) {
   const report = reportData?.data
   const isZeroMentions = kpis !== undefined && kpis.totalMentions === 0
 
+  // Sentiment donut chart data — values are 0-100 for display
+  const sentimentPieData = kpis
+    ? [
+        {
+          id: 'positive',
+          value: parseFloat((kpis.sentimentPositive * 100).toFixed(1)),
+          label: `Positivo ${(kpis.sentimentPositive * 100).toFixed(0)}%`,
+          color: geoColors.sentiment.positive, // color.sentiment.positive → #388E3C
+        },
+        {
+          id: 'neutral',
+          value: parseFloat((kpis.sentimentNeutral * 100).toFixed(1)),
+          label: `Neutro ${(kpis.sentimentNeutral * 100).toFixed(0)}%`,
+          color: geoColors.sentiment.neutral, // color.sentiment.neutral → #757575
+        },
+        {
+          id: 'negative',
+          value: parseFloat((kpis.sentimentNegative * 100).toFixed(1)),
+          label: `Negativo ${(kpis.sentimentNegative * 100).toFixed(0)}%`,
+          color: geoColors.sentiment.negative, // color.sentiment.negative → #D32F2F
+        },
+      ]
+    : []
+
   return (
     <Box>
       {/* ── Error state: KPI load failure ── */}
@@ -92,7 +118,7 @@ export default function OverviewPage({ params }: OverviewPageProps) {
             <Skeleton variant="rounded" width={130} height={140} />
             <Skeleton variant="rounded" width={130} height={140} />
           </Box>
-          <Skeleton variant="rounded" height={60} sx={{ mb: 3 }} />
+          <Skeleton variant="rounded" height={220} sx={{ mb: 3 }} />
           <Skeleton variant="rounded" width="40%" height={36} />
           <Skeleton variant="rounded" width="40%" height={36} sx={{ mt: 1 }} />
         </Box>
@@ -128,16 +154,117 @@ export default function OverviewPage({ params }: OverviewPageProps) {
             />
           </Box>
 
-          {/* ── Sentiment bar ── */}
-          <Card sx={{ mb: 4 }}>
-            <CardContent>
-              <SentimentBar
-                positive={kpis.sentimentPositive}
-                neutral={kpis.sentimentNeutral}
-                negative={kpis.sentimentNegative}
-              />
-            </CardContent>
-          </Card>
+          {/* ── Sentiment section: donut chart + text summary ── */}
+          {/* Zero-state: skip chart entirely, only the alert above communicates the empty state */}
+          {!isZeroMentions && (
+            <Card sx={{ mb: 4 }}>
+              <CardContent>
+                <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                  Sentiment
+                </Typography>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    gap: 4,
+                  }}
+                >
+                  {/* Left: PieChart donut — innerRadius 50, outerRadius 90, height 220px */}
+                  <Box sx={{ flexShrink: 0 }}>
+                    <PieChart
+                      series={[
+                        {
+                          data: sentimentPieData,
+                          innerRadius: 50,
+                          outerRadius: 90,
+                          paddingAngle: 2,
+                          cornerRadius: 3,
+                          highlightScope: { fade: 'global', highlight: 'item' },
+                        },
+                      ]}
+                      width={260}
+                      height={220}
+                    />
+                  </Box>
+
+                  {/* Right: stacked text summary */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Brand menzionato in{' '}
+                      <Box component="span" fontWeight={700} color="text.primary">
+                        {kpis.totalMentions}
+                      </Box>
+                      {' '}/{' '}
+                      <Box component="span" fontWeight={700} color="text.primary">
+                        {kpis.totalQueries}
+                      </Box>{' '}
+                      query
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                      {/* Positivo */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box
+                          sx={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            bgcolor: geoColors.sentiment.positive, // color.sentiment.positive
+                            flexShrink: 0,
+                          }}
+                        />
+                        <Typography variant="body2" color="text.secondary">
+                          Positivo:{' '}
+                          <Box component="span" fontWeight={700} sx={{ color: geoColors.sentiment.positive }}>
+                            {(kpis.sentimentPositive * 100).toFixed(0)}%
+                          </Box>
+                        </Typography>
+                      </Box>
+
+                      {/* Neutro */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box
+                          sx={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            bgcolor: geoColors.sentiment.neutral, // color.sentiment.neutral
+                            flexShrink: 0,
+                          }}
+                        />
+                        <Typography variant="body2" color="text.secondary">
+                          Neutro:{' '}
+                          <Box component="span" fontWeight={700} sx={{ color: geoColors.sentiment.neutral }}>
+                            {(kpis.sentimentNeutral * 100).toFixed(0)}%
+                          </Box>
+                        </Typography>
+                      </Box>
+
+                      {/* Negativo */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box
+                          sx={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            bgcolor: geoColors.sentiment.negative, // color.sentiment.negative
+                            flexShrink: 0,
+                          }}
+                        />
+                        <Typography variant="body2" color="text.secondary">
+                          Negativo:{' '}
+                          <Box component="span" fontWeight={700} sx={{ color: geoColors.sentiment.negative }}>
+                            {(kpis.sentimentNegative * 100).toFixed(0)}%
+                          </Box>
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          )}
 
           {/* ── Focus sul target card (AC-023) ── */}
           <Card sx={{ mb: 4, borderLeft: '4px solid', borderColor: 'primary.main' }}>

@@ -41,6 +41,7 @@ import {
   deleteAdminUser,
   ApiError,
   type UserProfile,
+  type ApiSuccess,
 } from '@/lib/api-client'
 
 const CreateUserSchema = z.object({
@@ -69,10 +70,10 @@ export default function AdminUsersPage() {
     }
   }, [session, router])
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery<ApiSuccess<UserProfile[]>>({
     queryKey: ['admin-users'],
     queryFn: () => getAdminUsers(session?.accessToken ?? ''),
-    enabled: !!session?.accessToken && session.user.role === 'admin',
+    enabled: !!session?.accessToken && session?.user?.role === 'admin',
   })
 
   const createMutation = useMutation({
@@ -199,7 +200,7 @@ export default function AdminUsersPage() {
       {isError && (
         <Alert
           severity="error"
-          action={<Button color="inherit" size="small" onClick={() => void refetch()}>Riprova</Button>}
+          action={<Button color="inherit" size="small" onClick={() => void (refetch as () => void)()}>Riprova</Button>}
           sx={{ mb: 2 }}
         >
           Impossibile caricare gli utenti. Riprova.

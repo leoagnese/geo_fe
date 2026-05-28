@@ -32,7 +32,7 @@ import InputAdornment from '@mui/material/InputAdornment'
 import SearchIcon from '@mui/icons-material/Search'
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
 import StatusChip from '@/components/StatusChip'
-import { getAdminRuns, type AdminRunRow, type RunStatus } from '@/lib/api-client'
+import { getAdminRuns, type AdminRunRow, type RunStatus, type ApiSuccess } from '@/lib/api-client'
 
 type AdminRunGridRow = AdminRunRow & { id: string }
 
@@ -55,11 +55,11 @@ export default function AdminRunsPage() {
     isLoading,
     isError,
     refetch,
-  } = useQuery({
+  } = useQuery<ApiSuccess<AdminRunRow[]>>({
     queryKey: ['admin-runs', page],
     queryFn: () =>
       getAdminRuns(session?.accessToken ?? '', { page: page + 1, limit: PAGE_SIZE }),
-    enabled: !!session?.accessToken && session.user.role === 'admin',
+    enabled: !!session?.accessToken && session?.user?.role === 'admin',
   })
 
   if (session && session.user.role !== 'admin') return null
@@ -151,7 +151,7 @@ export default function AdminRunsPage() {
         <Alert
           severity="error"
           action={
-            <Button color="inherit" size="small" onClick={() => void refetch()}>
+            <Button color="inherit" size="small" onClick={() => void (refetch as () => void)()}>
               Riprova
             </Button>
           }

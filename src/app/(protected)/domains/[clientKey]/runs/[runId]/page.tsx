@@ -289,9 +289,11 @@ export default function RunMonitorPage({ params }: RunMonitorPageProps) {
 
   const run = runData?.data
 
-  // ── Socket layer — active while run is running or queued ──────
+  // ── Socket layer — connect immediately on mount so run:done is never missed.
+  // Disabled only once HTTP confirms a terminal status (done/error/cancelled).
+  const TERMINAL = ['done', 'error', 'cancelled']
   const socketEnabled =
-    (run?.status === 'running' || run?.status === 'queued') && !!session?.accessToken
+    !TERMINAL.includes(run?.status ?? '') && !!session?.accessToken
 
   const { connected, logs, progress, currentPhase, terminalEvent } = useRunSocket(
     runId,

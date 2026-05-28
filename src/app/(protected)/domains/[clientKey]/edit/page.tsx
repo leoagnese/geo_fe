@@ -41,6 +41,7 @@ const EditDomainSchema = z.object({
   brand: z.string().min(1, 'Brand è obbligatorio'),
   aliases: z.array(z.string()).default([]),
   settori: z.array(z.string()).default([]),
+  keywords: z.array(z.string()).default([]),
 })
 
 type EditDomainForm = z.infer<typeof EditDomainSchema>
@@ -77,7 +78,7 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
     formState: { errors, isSubmitting },
   } = useForm<EditDomainForm>({
     resolver: zodResolver(EditDomainSchema),
-    defaultValues: { brand: '', aliases: [], settori: [] },
+    defaultValues: { brand: '', aliases: [], settori: [], keywords: [] },
   })
 
   // Pre-populate form once domain data arrives
@@ -87,6 +88,7 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
         brand: domain.brand,
         aliases: domain.aliases ?? [],
         settori: domain.settori ?? [],
+        keywords: domain.keywords ?? [],
       })
     }
   }, [domain, reset])
@@ -97,6 +99,7 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
         brand: data.brand,
         aliases: data.aliases,
         settori: data.settori,
+        keywords: data.keywords,
       }),
     onSuccess: () => {
       setSuccessToast(true)
@@ -189,6 +192,25 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
                 value={field.value}
                 onChange={field.onChange}
                 placeholder="Es. food-beverage"
+              />
+            )}
+          />
+        )}
+
+        {/* keywords — usate da n8n come base per la generazione delle query */}
+        {isLoading ? (
+          <Skeleton variant="rounded" height={56} />
+        ) : (
+          <Controller
+            name="keywords"
+            control={control}
+            render={({ field }) => (
+              <TagInput
+                label="Keyword (facoltativo)"
+                value={field.value}
+                onChange={field.onChange}
+                placeholder="Es. caffè espresso, macchina caffè — premi Invio"
+                helperText="Keyword di riferimento per l'analisi AI Visibility. Usate da n8n per generare le query di audit."
               />
             )}
           />
