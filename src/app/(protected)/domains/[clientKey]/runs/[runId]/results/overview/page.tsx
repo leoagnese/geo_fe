@@ -30,6 +30,7 @@ import Skeleton from '@mui/material/Skeleton'
 import Alert from '@mui/material/Alert'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
+import CircularProgress from '@mui/material/CircularProgress'
 import DownloadIcon from '@mui/icons-material/Download'
 import { PieChart } from '@mui/x-charts/PieChart'
 import { ScoreHero, MetricChip } from '@/components/KpiCards'
@@ -62,6 +63,12 @@ export default function OverviewPage({ params }: OverviewPageProps) {
     queryKey: ['run-report', clientKey, runId],
     queryFn: () => getRunReport(session?.accessToken ?? '', clientKey, runId),
     enabled: !!session?.accessToken,
+    // Poll every 5 s until at least one report file is saved by the n8n Reporter.
+    // Stops automatically once files arrive (or on error).
+    refetchInterval: (query) => {
+      const files = query.state.data?.data?.files
+      return !files || files.length === 0 ? 5_000 : false
+    },
   })
 
   const kpis = kpisData?.data
@@ -345,11 +352,14 @@ export default function OverviewPage({ params }: OverviewPageProps) {
           </Box>
         )}
 
-        {/* No files yet */}
-        {report && !report.uploadError && report.files.length === 0 && (
-          <Typography variant="body2" color="text.secondary">
-            Report non ancora disponibile.
-          </Typography>
+        {/* Generating — poll in progress */}
+        {(!report || report.files.length === 0) && !report?.uploadError && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <CircularProgress size={16} thickness={5} />
+            <Typography variant="body2" color="text.secondary">
+              Report in generazione, disponibile a breve…
+            </Typography>
+          </Box>
         )}
       </Box>
     </Box>
