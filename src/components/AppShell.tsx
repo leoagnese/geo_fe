@@ -1,9 +1,6 @@
 /**
- * AppShell — top nav + sidebar nav wrapping all (protected) routes.
- *
- * Top nav: 64px height, color.neutral.surface bg, shadow.card bottom.
- * Contents: logo (left), breadcrumb (center-left), user avatar + role badge (right).
- * Sidebar: Domains link + Admin section (admin role only).
+ * AppShell — top nav con link orizzontali (nessuna sidebar).
+ * Layout allineato ai mockup docs_legacy (projects-domains.html, brand-analysis.html).
  *
  * @spec L1_design/patterns/layouts.md §"Page shell"
  * @implements US-002
@@ -19,40 +16,25 @@ import AppBar from '@mui/material/AppBar'
 import Box from '@mui/material/Box'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
-import Drawer from '@mui/material/Drawer'
-import List from '@mui/material/List'
-import ListItemButton from '@mui/material/ListItemButton'
-import ListItemIcon from '@mui/material/ListItemIcon'
-import ListItemText from '@mui/material/ListItemText'
-import Divider from '@mui/material/Divider'
 import Avatar from '@mui/material/Avatar'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
-import Chip from '@mui/material/Chip'
 import IconButton from '@mui/material/IconButton'
-import DomainIcon from '@mui/icons-material/Language'
-import AdminIcon from '@mui/icons-material/AdminPanelSettings'
-import PeopleIcon from '@mui/icons-material/People'
-import RunIcon from '@mui/icons-material/PlayCircle'
-import ProfileIcon from '@mui/icons-material/Tune'
+import Button from '@mui/material/Button'
+import Divider from '@mui/material/Divider'
+import Chip from '@mui/material/Chip'
 
-const DRAWER_WIDTH = 240
-
-interface NavItem {
+interface NavLink {
   label: string
   path: string
-  icon: ReactNode
   adminOnly?: boolean
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Domini', path: '/domains', icon: <DomainIcon /> },
-]
-
-const ADMIN_NAV_ITEMS: NavItem[] = [
-  { label: 'Utenti', path: '/admin/users', icon: <PeopleIcon />, adminOnly: true },
-  { label: 'Run globali', path: '/admin/runs', icon: <RunIcon />, adminOnly: true },
-  { label: 'Profili LLM', path: '/admin/profiles', icon: <ProfileIcon />, adminOnly: true },
+const NAV_LINKS: NavLink[] = [
+  { label: 'Domini', path: '/domains' },
+  { label: 'Utenti', path: '/admin/users', adminOnly: true },
+  { label: 'Run globali', path: '/admin/runs', adminOnly: true },
+  { label: 'Profili LLM', path: '/admin/profiles', adminOnly: true },
 ]
 
 interface AppShellProps {
@@ -68,183 +50,158 @@ export default function AppShell({ children }: AppShellProps) {
   const isAdmin = session?.user?.role === 'admin'
   const userInitial = session?.user?.email?.[0]?.toUpperCase() ?? 'U'
 
-  const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget)
-  }
-
-  const handleUserMenuClose = () => {
-    setAnchorEl(null)
-  }
-
-  const handleSignOut = () => {
-    handleUserMenuClose()
-    void signOut({ callbackUrl: '/login' })
-  }
+  const visibleLinks = NAV_LINKS.filter((l) => !l.adminOnly || isAdmin)
 
   const isActive = (path: string) => pathname.startsWith(path)
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {/* ── Top nav bar (64px, color.neutral.surface, shadow.card) ── */}
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+
+      {/* ── Top nav bar ── */}
       <AppBar
-        position="fixed"
+        position="sticky"
         elevation={0}
         sx={{
-          zIndex: (theme) => theme.zIndex.drawer + 1,
-          bgcolor: 'background.paper',          // color.neutral.surface
+          bgcolor: 'background.paper',
           borderBottom: '1px solid',
-          borderColor: 'divider',               // color.neutral.border
-          boxShadow: 'var(--geo-shadow-card)',
-          height: 64,
+          borderColor: 'divider',
+          color: 'text.primary',
+          zIndex: (t) => t.zIndex.appBar,
         }}
       >
-        <Toolbar sx={{ height: 64, minHeight: '64px !important' }}>
+        <Toolbar
+          sx={{
+            height: 56,
+            minHeight: '56px !important',
+            px: { xs: 2, md: 4 },
+            gap: 4,
+          }}
+        >
           {/* Logo */}
           <Typography
             variant="h3"
-            color="primary"
-            sx={{ fontWeight: 700, mr: 4, cursor: 'pointer', flexShrink: 0 }}
+            sx={{
+              fontWeight: 800,
+              color: 'primary.main',
+              cursor: 'pointer',
+              flexShrink: 0,
+              letterSpacing: '-0.02em',
+            }}
             onClick={() => router.push('/domains')}
           >
-            Geo-SmartAudit
+            GEO Analytics
           </Typography>
+
+          {/* Nav links */}
+          <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 0.5 }}>
+            {visibleLinks.map((link) => {
+              const active = isActive(link.path)
+              return (
+                <Button
+                  key={link.path}
+                  onClick={() => router.push(link.path)}
+                  disableRipple={false}
+                  sx={{
+                    color: active ? 'primary.main' : 'text.secondary',
+                    fontWeight: active ? 700 : 500,
+                    fontSize: '0.875rem',
+                    borderRadius: '8px',
+                    px: 1.5,
+                    py: 0.75,
+                    borderBottom: active ? '2px solid' : '2px solid transparent',
+                    borderColor: active ? 'primary.main' : 'transparent',
+                    borderBottomLeftRadius: 0,
+                    borderBottomRightRadius: 0,
+                    '&:hover': {
+                      bgcolor: 'transparent',
+                      color: 'primary.main',
+                    },
+                  }}
+                >
+                  {link.label}
+                  {link.adminOnly && (
+                    <Chip
+                      label="Admin"
+                      size="small"
+                      sx={{
+                        ml: 0.75,
+                        height: 16,
+                        fontSize: '0.5625rem',
+                        fontWeight: 700,
+                        bgcolor: 'primary.main',
+                        color: 'white',
+                        '& .MuiChip-label': { px: 0.75 },
+                      }}
+                    />
+                  )}
+                </Button>
+              )
+            })}
+          </Box>
 
           <Box sx={{ flex: 1 }} />
 
-          {/* User avatar + role badge */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            {isAdmin && (
-              <Chip
-                icon={<AdminIcon sx={{ fontSize: 14 }} />}
-                label="Admin"
-                size="small"
-                color="primary"
-                variant="outlined"
-              />
-            )}
-            <IconButton
-              onClick={handleUserMenuOpen}
-              aria-label="account menu"
-              aria-controls="user-menu"
-              aria-haspopup="true"
+          {/* User avatar */}
+          <IconButton
+            onClick={(e) => setAnchorEl(e.currentTarget)}
+            size="small"
+            aria-label="account menu"
+          >
+            <Avatar
+              sx={{
+                width: 36,
+                height: 36,
+                bgcolor: 'primary.main',
+                fontSize: '0.875rem',
+                fontWeight: 700,
+              }}
             >
-              <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: '0.875rem' }}>
-                {userInitial}
-              </Avatar>
-            </IconButton>
-          </Box>
+              {userInitial}
+            </Avatar>
+          </IconButton>
 
-          {/* User dropdown menu */}
           <Menu
-            id="user-menu"
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
-            onClose={handleUserMenuClose}
+            onClose={() => setAnchorEl(null)}
             transformOrigin={{ horizontal: 'right', vertical: 'top' }}
             anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            slotProps={{
+              paper: {
+                sx: { mt: 1, borderRadius: '12px', minWidth: 200 },
+              },
+            }}
           >
-            <MenuItem disabled>
-              <Typography variant="body2" color="text.secondary">
-                {session?.user?.email ?? ''}
-              </Typography>
+            <MenuItem disabled sx={{ fontSize: '0.8125rem' }}>
+              {session?.user?.email ?? ''}
             </MenuItem>
             <Divider />
-            <MenuItem onClick={handleSignOut}>Esci</MenuItem>
+            <MenuItem
+              onClick={() => { setAnchorEl(null); void signOut({ callbackUrl: '/login' }) }}
+              sx={{ fontSize: '0.875rem', color: 'error.main' }}
+            >
+              Esci
+            </MenuItem>
           </Menu>
         </Toolbar>
       </AppBar>
 
-      {/* ── Sidebar navigation ── */}
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: DRAWER_WIDTH,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: DRAWER_WIDTH,
-            boxSizing: 'border-box',
-            top: 64, // below top nav
-            height: 'calc(100% - 64px)',
-            borderRight: '1px solid',
-            borderColor: 'divider',
-            boxShadow: 'none',
-            bgcolor: 'background.paper',
-          },
-        }}
-      >
-        <List sx={{ pt: 2 }}>
-          {NAV_ITEMS.map((item) => (
-            <ListItemButton
-              key={item.path}
-              selected={isActive(item.path) && !pathname.startsWith('/admin')}
-              onClick={() => router.push(item.path)}
-              sx={{
-                borderRadius: 'var(--geo-radius-sm)',
-                mx: 1,
-                '&.Mui-selected': {
-                  bgcolor: 'primary.main',
-                  color: 'primary.contrastText',
-                  '&:hover': { bgcolor: 'primary.dark' },
-                  '& .MuiListItemIcon-root': { color: 'inherit' },
-                },
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.label} />
-            </ListItemButton>
-          ))}
-
-          {/* Admin section — visible only to admin role */}
-          {isAdmin && (
-            <>
-              <Divider sx={{ my: 2, mx: 2 }} />
-              <Typography
-                variant="overline"
-                color="text.disabled"
-                sx={{ px: 3, display: 'block', mb: 1 }}
-              >
-                Admin
-              </Typography>
-              {ADMIN_NAV_ITEMS.map((item) => (
-                <ListItemButton
-                  key={item.path}
-                  selected={isActive(item.path)}
-                  onClick={() => router.push(item.path)}
-                  sx={{
-                    borderRadius: 'var(--geo-radius-sm)',
-                    mx: 1,
-                    '&.Mui-selected': {
-                      bgcolor: 'primary.main',
-                      color: 'primary.contrastText',
-                      '&:hover': { bgcolor: 'primary.dark' },
-                      '& .MuiListItemIcon-root': { color: 'inherit' },
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.label} />
-                </ListItemButton>
-              ))}
-            </>
-          )}
-        </List>
-      </Drawer>
-
-      {/* ── Page content area ── */}
+      {/* ── Page content ── */}
       <Box
         component="main"
         sx={{
-          flexGrow: 1,
-          mt: '64px',         // below top nav
-          ml: `${DRAWER_WIDTH}px`,
-          bgcolor: 'background.default', // color.neutral.bg
-          minHeight: 'calc(100vh - 64px)',
-          px: { xs: 2, md: 4 },        // spacing.page-x: 32px desktop / 16px mobile
-          py: 4,                        // spacing.page-y: 32px
+          flex: 1,
+          bgcolor: 'background.default',
+          px: { xs: 2, sm: 3, md: 5 },
+          py: 4,
+          maxWidth: 1280,
+          width: '100%',
+          mx: 'auto',
         }}
       >
         {children}
       </Box>
+
     </Box>
   )
 }

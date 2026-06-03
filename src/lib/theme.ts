@@ -1,206 +1,157 @@
 /**
- * MUI v6 theme built from Geo-SmartAudit design tokens.
+ * MUI v6 theme — design tokens allineati ai mockup docs_legacy.
  *
- * Token source: L1_design/design-tokens.md
- * All values reference their semantic token names in comments.
- * No hardcoded raw values should appear outside this file — all other
- * modules reference theme palette / typography / spacing keys.
- *
- * @spec L1_design/design-tokens.md
+ * Design system source: geo_be/docs_legacy/*.html
+ * Primary: #ec5b13 (arancione) | Font: Public Sans | Radii: xl (12px) / 2xl (16px)
+ * Palette: slate-based (neutral) + primary orange
  */
 import { createTheme } from '@mui/material/styles'
 
 // ──────────────────────────────────────────────────────────────
-// Color tokens (color.*)
+// Color tokens
 // ──────────────────────────────────────────────────────────────
-// color.brand.primary         → #1565C0
-// color.brand.primary.dark    → #0D47A1
-// color.brand.primary.light   → #1E88E5
-// color.brand.accent          → #00ACC1
-// color.neutral.bg            → #F5F7FA
-// color.neutral.surface       → #FFFFFF
-// color.neutral.border        → #E0E4EB
-// color.neutral.text.primary  → #1A1F36
-// color.neutral.text.secondary→ #6B7A99
-// color.neutral.text.disabled → #ADB5C8
-// color.status.running        → #1565C0
-// color.status.queued         → #F57C00
-// color.status.done           → #2E7D32
-// color.status.error          → #C62828
-// color.status.cancelled      → #546E7A
-// color.sentiment.positive    → #388E3C
-// color.sentiment.neutral     → #757575
-// color.sentiment.negative    → #D32F2F
-// color.score.high            → #2E7D32
-// color.score.mid             → #F57C00
-// color.score.low             → #C62828
+// primary             → #ec5b13  (arancione, da docs_legacy)
+// background.default  → #f8f6f6
+// background.paper    → #ffffff
+// text.primary        → #0f172a  (slate-900)
+// text.secondary      → #64748b  (slate-500)
+// text.disabled       → #94a3b8  (slate-400)
+// divider             → #e2e8f0  (slate-200)
+// color.status.*      → invariati (semantici, non legati al brand)
 
 const geoTheme = createTheme({
-  // ─── Palette ─────────────────────────────────────────────────
   palette: {
-    mode: 'light', // dark mode is NOT in scope for MVP
+    mode: 'light',
 
     primary: {
-      main: '#1565C0',    // color.brand.primary
-      dark: '#0D47A1',    // color.brand.primary.dark
-      light: '#1E88E5',   // color.brand.primary.light
-      contrastText: '#FFFFFF',
-    },
-
-    info: {
-      main: '#00ACC1',    // color.brand.accent
-      dark: '#1565C0',    // color.status.running (re-used as info.dark)
+      main: '#ec5b13',
+      dark: '#c94a0a',
+      light: '#f07a3a',
+      contrastText: '#ffffff',
     },
 
     warning: {
-      main: '#F57C00',    // color.status.queued
+      main: '#f59e0b',   // color.status.queued
     },
 
     success: {
-      main: '#2E7D32',    // color.status.done
+      main: '#16a34a',   // color.status.done
     },
 
     error: {
-      main: '#C62828',    // color.status.error
+      main: '#dc2626',   // color.status.error
+    },
+
+    info: {
+      main: '#3b82f6',   // color.status.running
     },
 
     background: {
-      default: '#F5F7FA', // color.neutral.bg
-      paper: '#FFFFFF',   // color.neutral.surface
+      default: '#f8f6f6',
+      paper: '#ffffff',
     },
 
-    divider: '#E0E4EB',   // color.neutral.border
+    divider: '#e2e8f0',
 
     text: {
-      primary: '#1A1F36',   // color.neutral.text.primary
-      secondary: '#6B7A99', // color.neutral.text.secondary
-      disabled: '#ADB5C8',  // color.neutral.text.disabled
+      primary: '#0f172a',
+      secondary: '#64748b',
+      disabled: '#94a3b8',
     },
 
     grey: {
-      600: '#546E7A',       // color.status.cancelled
+      600: '#475569',   // color.status.cancelled (slate-600)
     },
   },
 
-  // ─── Typography ───────────────────────────────────────────────
-  // text.font.primary  → 'Inter', sans-serif
-  // text.font.mono     → 'JetBrains Mono', monospace
   typography: {
-    fontFamily: "'Inter', system-ui, -apple-system, sans-serif", // text.font.primary
+    fontFamily: "'Public Sans', system-ui, -apple-system, sans-serif",
     h1: {
-      fontSize: '2rem',      // text.scale.h1
-      fontWeight: 700,
+      fontSize: '2rem',
+      fontWeight: 800,
+      letterSpacing: '-0.025em',
     },
     h2: {
-      fontSize: '1.5rem',    // text.scale.h2
-      fontWeight: 600,
+      fontSize: '1.5rem',
+      fontWeight: 700,
+      letterSpacing: '-0.02em',
     },
     h3: {
-      fontSize: '1.25rem',   // text.scale.h3
-      fontWeight: 600,
+      fontSize: '1.25rem',
+      fontWeight: 700,
+      letterSpacing: '-0.015em',
     },
     body1: {
-      fontSize: '1rem',      // text.scale.body1
+      fontSize: '1rem',
       fontWeight: 400,
     },
     body2: {
-      fontSize: '0.875rem',  // text.scale.body2
+      fontSize: '0.875rem',
       fontWeight: 400,
     },
     caption: {
-      fontSize: '0.75rem',   // text.scale.caption
+      fontSize: '0.75rem',
       fontWeight: 400,
     },
     overline: {
-      fontSize: '0.625rem',  // text.scale.overline
-      fontWeight: 600,
+      fontSize: '0.625rem',
+      fontWeight: 700,
       textTransform: 'uppercase',
-      letterSpacing: '0.08em',
+      letterSpacing: '0.1em',
     },
   },
 
-  // ─── Spacing (8px grid) ──────────────────────────────────────
-  // spacing(1) = 8px  → spacing.1
-  // spacing(2) = 16px → spacing.2
-  // ...etc
   spacing: 8,
 
-  // ─── Shape (radius tokens) ───────────────────────────────────
-  // radius.md = 8px used as MUI default
   shape: {
-    borderRadius: 8, // radius.md
+    borderRadius: 12,  // rounded-xl, usato come default
   },
 
-  // ─── Component overrides ──────────────────────────────────────
   components: {
     MuiCssBaseline: {
       styleOverrides: `
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap');
-
         :root {
-          --geo-color-brand-primary: #1565C0;
-          --geo-color-brand-primary-dark: #0D47A1;
-          --geo-color-brand-primary-light: #1E88E5;
-          --geo-color-brand-accent: #00ACC1;
-          --geo-color-neutral-bg: #F5F7FA;
-          --geo-color-neutral-surface: #FFFFFF;
-          --geo-color-neutral-border: #E0E4EB;
-          --geo-color-neutral-text-primary: #1A1F36;
-          --geo-color-neutral-text-secondary: #6B7A99;
-          --geo-color-neutral-text-disabled: #ADB5C8;
-          --geo-color-status-running: #1565C0;
-          --geo-color-status-queued: #F57C00;
-          --geo-color-status-done: #2E7D32;
-          --geo-color-status-error: #C62828;
-          --geo-color-status-cancelled: #546E7A;
-          --geo-color-sentiment-positive: #388E3C;
-          --geo-color-sentiment-neutral: #757575;
-          --geo-color-sentiment-negative: #D32F2F;
-          --geo-color-score-high: #2E7D32;
-          --geo-color-score-mid: #F57C00;
-          --geo-color-score-low: #C62828;
-          --geo-font-primary: 'Inter', system-ui, sans-serif;
+          --geo-color-primary: #ec5b13;
+          --geo-color-primary-dark: #c94a0a;
+          --geo-color-primary-light: #f07a3a;
+          --geo-color-bg: #f8f6f6;
+          --geo-color-surface: #ffffff;
+          --geo-color-border: #e2e8f0;
+          --geo-color-text-primary: #0f172a;
+          --geo-color-text-secondary: #64748b;
+          --geo-color-text-disabled: #94a3b8;
+          --geo-color-status-running: #3b82f6;
+          --geo-color-status-queued: #f59e0b;
+          --geo-color-status-done: #16a34a;
+          --geo-color-status-error: #dc2626;
+          --geo-color-status-cancelled: #475569;
+          --geo-color-sentiment-positive: #16a34a;
+          --geo-color-sentiment-neutral: #64748b;
+          --geo-color-sentiment-negative: #dc2626;
+          --geo-color-score-high: #16a34a;
+          --geo-color-score-mid: #f59e0b;
+          --geo-color-score-low: #dc2626;
+          --geo-font-primary: 'Public Sans', system-ui, sans-serif;
           --geo-font-mono: 'JetBrains Mono', monospace;
-          --geo-text-kpi-size: 2.5rem;
-          --geo-text-mono-sm: 0.8125rem;
-          --geo-sp-1: 8px;
-          --geo-sp-2: 16px;
-          --geo-sp-3: 24px;
-          --geo-sp-4: 32px;
-          --geo-sp-5: 40px;
-          --geo-sp-6: 48px;
-          --geo-sp-8: 64px;
-          --geo-sp-10: 80px;
-          --geo-sp-page-x: 32px;
-          --geo-sp-page-y: 32px;
           --geo-radius-xs: 4px;
-          --geo-radius-sm: 6px;
-          --geo-radius-md: 8px;
-          --geo-radius-lg: 12px;
+          --geo-radius-sm: 8px;
+          --geo-radius-md: 12px;
+          --geo-radius-lg: 16px;
           --geo-radius-full: 9999px;
-          --geo-shadow-card: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
-          --geo-shadow-panel: 0 4px 12px rgba(0,0,0,0.10);
-          --geo-shadow-dialog: 0 20px 60px rgba(0,0,0,0.16);
+          --geo-shadow-card: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05);
+          --geo-shadow-panel: 0 4px 12px rgba(0,0,0,0.08);
+          --geo-shadow-dialog: 0 20px 60px rgba(0,0,0,0.14);
           --geo-motion-fast: 150ms;
           --geo-motion-base: 250ms;
-          --geo-motion-slow: 400ms;
           --geo-motion-ease-std: cubic-bezier(0.4, 0, 0.2, 1);
-          --geo-motion-ease-in: cubic-bezier(0.0, 0, 0.2, 1);
-          --geo-motion-ease-out: cubic-bezier(0.4, 0, 1, 1);
         }
 
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-
-        * {
-          box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
-          background-color: var(--geo-color-neutral-bg);
-          color: var(--geo-color-neutral-text-primary);
+          font-family: 'Public Sans', system-ui, sans-serif;
+          background-color: var(--geo-color-bg);
+          color: var(--geo-color-text-primary);
         }
       `,
     },
@@ -208,9 +159,9 @@ const geoTheme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          // shadow.card
-          boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
-          borderRadius: '8px', // radius.md
+          boxShadow: '0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05)',
+          borderRadius: '16px',
+          border: '1px solid #e2e8f0',
         },
       },
     },
@@ -218,10 +169,16 @@ const geoTheme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: '6px',       // radius.sm
+          borderRadius: '12px',
           textTransform: 'none',
-          fontWeight: 600,
-          transition: 'all 150ms cubic-bezier(0.4, 0, 0.2, 1)', // motion.fast + motion.ease-std
+          fontWeight: 700,
+          transition: 'all 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+        },
+        containedPrimary: {
+          boxShadow: '0 4px 14px rgba(236,91,19,0.25)',
+          '&:hover': {
+            boxShadow: '0 6px 20px rgba(236,91,19,0.35)',
+          },
         },
       },
     },
@@ -229,9 +186,9 @@ const geoTheme = createTheme({
     MuiChip: {
       styleOverrides: {
         root: {
-          borderRadius: '9999px', // radius.full
-          fontSize: '0.75rem',    // text.scale.caption
-          fontWeight: 600,
+          borderRadius: '9999px',
+          fontSize: '0.75rem',
+          fontWeight: 700,
           height: '24px',
         },
       },
@@ -242,53 +199,100 @@ const geoTheme = createTheme({
         variant: 'outlined',
         size: 'small',
       },
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-root': {
+            borderRadius: '12px',
+            backgroundColor: '#f1f5f9',
+            '& fieldset': { border: 'none' },
+            '&:hover fieldset': { border: 'none' },
+            '&.Mui-focused fieldset': {
+              border: '2px solid #ec5b13',
+            },
+          },
+        },
+      },
+    },
+
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundImage: 'none',
+        },
+        outlined: {
+          border: '1px solid #e2e8f0',
+          borderRadius: '16px',
+        },
+      },
+    },
+
+    MuiTableHead: {
+      styleOverrides: {
+        root: {
+          '& .MuiTableCell-head': {
+            backgroundColor: '#f8fafc',
+            color: '#64748b',
+            fontSize: '0.6875rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+          },
+        },
+      },
+    },
+
+    MuiTableRow: {
+      styleOverrides: {
+        root: {
+          '&:hover': {
+            backgroundColor: '#f8fafc',
+          },
+        },
+      },
+    },
+
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          fontWeight: 600,
+          fontSize: '0.875rem',
+        },
+      },
     },
 
     MuiDialog: {
       styleOverrides: {
         paper: {
-          // shadow.dialog
-          boxShadow: '0 20px 60px rgba(0,0,0,0.16)',
-          borderRadius: '8px', // radius.md
-        },
-      },
-    },
-
-    MuiDrawer: {
-      styleOverrides: {
-        paper: {
-          // shadow.panel
-          boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
-          width: 480, // Drawer pattern per layouts.md
+          boxShadow: '0 20px 60px rgba(0,0,0,0.14)',
+          borderRadius: '16px',
         },
       },
     },
   },
 })
 
-// ─── Custom semantic color constants (for use in component logic) ──────────
-// These are referenced in TS code; CSS custom properties used in stylesheets.
+// ─── Semantic color constants ──────────────────────────────────
 export const geoColors = {
   status: {
-    running: '#1565C0',   // color.status.running
-    queued: '#F57C00',    // color.status.queued
-    done: '#2E7D32',      // color.status.done
-    error: '#C62828',     // color.status.error
-    cancelled: '#546E7A', // color.status.cancelled
+    running: '#3b82f6',
+    queued: '#f59e0b',
+    done: '#16a34a',
+    error: '#dc2626',
+    cancelled: '#475569',
   },
   sentiment: {
-    positive: '#388E3C',  // color.sentiment.positive
-    neutral: '#757575',   // color.sentiment.neutral
-    negative: '#D32F2F',  // color.sentiment.negative
+    positive: '#16a34a',
+    neutral: '#64748b',
+    negative: '#dc2626',
   },
   score: {
-    high: '#2E7D32',      // color.score.high (score >= 70)
-    mid: '#F57C00',       // color.score.mid  (score 30-69)
-    low: '#C62828',       // color.score.low  (score < 30)
+    high: '#16a34a',
+    mid: '#f59e0b',
+    low: '#dc2626',
   },
 } as const
 
-/** Returns the score color token based on the three-band system from design-tokens.md */
 export function getScoreColor(score: number): string {
   if (score >= 70) return geoColors.score.high
   if (score >= 30) return geoColors.score.mid
