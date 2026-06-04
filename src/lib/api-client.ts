@@ -115,8 +115,20 @@ export interface CreateRunDto {
   runIterations: number
   locales?: string[]
   keywordsOverride?: string[]
+  keywordsByLang?: Record<string, string[]>
+  questionsCountByLang?: Record<string, number>
+  activePersonaIds?: string[]
+  locationFocusByLang?: Record<string, string>
   testMode?: boolean
   debugMode?: boolean
+}
+
+export interface Persona {
+  id: string
+  name: string
+  description: string
+  context: string
+  searchStyle: string
 }
 
 export interface RunListItem {
@@ -493,6 +505,11 @@ export async function getProfiles(
   limit = 50,
 ): Promise<ApiSuccess<LlmProfile[]>> {
   return apiFetch<ApiSuccess<LlmProfile[]>>(`/profiles?page=${page}&limit=${limit}`, token)
+}
+
+/** GET /personas — Static persona catalog for run configuration */
+export async function getPersonas(token: string): Promise<ApiSuccess<Persona[]>> {
+  return apiFetch<ApiSuccess<Persona[]>>('/personas', token)
 }
 
 // ──────────────────────────────────────────────────────────────

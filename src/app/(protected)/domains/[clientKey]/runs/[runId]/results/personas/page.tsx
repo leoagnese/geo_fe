@@ -1,21 +1,17 @@
 /**
- * SC-033 — Persona breakdown.
+ * SC-033 — Report LLM.
  *
- * When personas >= 2: grouped vertical BarChart comparing all personas on
- * Visibility % and Link Rate % appears above the DataGrid.
- * When only 1 persona: chart is skipped (1-bar chart is not useful), DataGrid only.
- *
- * DataGrid: persona name, queries, visibility %, avgRank, linkRate %, target mentions.
- * Sortable. Layout mirrors SC-032. Default sort: visibility % descending.
+ * Mostra il report markdown generato da n8n, con link per scaricare XLSX e MD da Drive.
+ * Polling ogni 5 s finché files è vuoto.
  *
  * States:
- * - Loading: Skeleton height 280 + DataGrid skeleton
- * - Error: inline error
- * - Empty: "Nessuna persona trovata" DataGrid empty state
- * - Populated: grouped BarChart (if >= 2 personas) + sortable DataGrid
+ * - Loading / generazione in corso: spinner + messaggio
+ * - Upload error: Alert warning non-bloccante
+ * - Populated (md): Card con rendering HTML del markdown
+ * - Populated (solo xlsx): bottone download, nessun contenuto testuale
  *
- * @implements US-016
- * @validates AC-025
+ * @implements US-017
+ * @validates AC-026, AC-027
  * @spec L1_design/screen-inventory.md §"SC-033"
  * @spec L1_design/states-and-empty.md §"SC-033"
  * @figma — (Figma file not yet created)
@@ -28,199 +24,115 @@ import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
 import Alert from '@mui/material/Alert'
-import Skeleton from '@mui/material/Skeleton'
-import { BarChart } from '@mui/x-charts/BarChart'
-import { DataGrid, type GridColDef } from '@mui/x-data-grid'
-import { getRunPersonas, type PersonaBreakdownRow } from '@/lib/api-client'
+import Card from '@mui/material/Card'
+import CircularProgress from '@mui/material/CircularProgress'
+import DownloadIcon from '@mui/icons-material/Download'
+import { getRunReport, type ReportFile } from '@/lib/api-client'
 
-interface PersonasPageProps {
+interface ReportLlmPageProps {
   params: { clientKey: string; runId: string }
 }
 
-type PersonaRow = PersonaBreakdownRow & { id: string }
+type ReportFileWithContent = ReportFile & { content?: string }
 
-export default function PersonasPage({ params }: PersonasPageProps) {
+function markdownToHtml(md: string): string {
+  return md
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>[^]*?<\/li>)/gm, '<ul>$1</ul>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/^(?!<[hulo])/gm, '<p>')
+    .replace(/<p><\/p>/g, '')
+    .replace(/<p>(<[hul])/g, '$1')
+}
+
+export default function ReportLlmPage({ params }: ReportLlmPageProps) {
   const { clientKey, runId } = params
   const { data: session } = useSession()
 
   const {
-    data,
-    isLoading,
-    isError,
-    refetch,
+    data: reportData,
+    isLoading: reportLoading,
   } = useQuery({
-    queryKey: ['run-personas', clientKey, runId],
-    queryFn: () => getRunPersonas(session?.accessToken ?? '', clientKey, runId),
+    queryKey: ['run-report', clientKey, runId],
+    queryFn: () => getRunReport(session?.accessToken ?? '', clientKey, runId),
     enabled: !!session?.accessToken,
+    refetchInterval: (query) => {
+      const files = query.state.data?.data?.files
+      return !files || files.length === 0 ? 5_000 : false
+    },
   })
 
-  const rows: PersonaRow[] = (data?.data ?? []).map((r) => ({
-    ...r,
-    id: r.personaId,
-  }))
-
-  // Chart data — aligned arrays of values per persona
-  const personaNames = rows.map((r) => r.personaName)
-  const visibilityValues = rows.map((r) =>
-    parseFloat((r.visibilityPct * 100).toFixed(1))
-  )
-  const linkRateValues = rows.map((r) =>
-    parseFloat((r.linkRatePct * 100).toFixed(1))
-  )
-
-  // Show chart only when there are 2 or more personas — 1 bar is not informative
-  const showChart = rows.length >= 2
-
-  const columns: GridColDef<PersonaRow>[] = [
-    {
-      field: 'personaName',
-      headerName: 'Persona',
-      flex: 1,
-      minWidth: 220,
-      sortable: true,
-    },
-    {
-      field: 'queriesExecuted',
-      headerName: 'Query eseguite',
-      width: 150,
-      sortable: true,
-      type: 'number',
-    },
-    {
-      field: 'visibilityPct',
-      headerName: 'Visibility %',
-      width: 130,
-      sortable: true,
-      type: 'number',
-      renderCell: (params) => `${((params.value as number) * 100).toFixed(1)}%`,
-    },
-    {
-      field: 'avgRankPosition',
-      headerName: 'Avg Rank',
-      width: 110,
-      sortable: true,
-      renderCell: (params) =>
-        params.value !== null ? `#${(params.value as number).toFixed(1)}` : 'N/D',
-    },
-    {
-      field: 'linkRatePct',
-      headerName: 'Link Rate %',
-      width: 120,
-      sortable: true,
-      type: 'number',
-      renderCell: (params) => `${((params.value as number) * 100).toFixed(1)}%`,
-    },
-    {
-      field: 'targetMentions',
-      headerName: 'Target Menzioni',
-      width: 150,
-      sortable: true,
-      type: 'number',
-    },
-  ]
+  const report = reportData?.data
+  const mdFile = report?.files.find((f) => f.type === 'md') as ReportFileWithContent | undefined
+  const xlsxFile = report?.files.find((f) => f.type === 'xlsx')
 
   return (
     <Box>
-      <Typography variant="h2" sx={{ mb: 3 }}>
-        Breakdown per persona
-      </Typography>
-
-      {/* ── Error state ── */}
-      {isError && (
-        <Alert
-          severity="error"
-          action={
-            <Button color="inherit" size="small" onClick={() => void refetch()}>
-              Riprova
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h2">Report LLM</Typography>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {xlsxFile?.driveUrl && (
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              href={xlsxFile.driveUrl}
+              target="_blank"
+              size="small"
+            >
+              Scarica XLSX
             </Button>
-          }
-          sx={{ mb: 2 }}
-        >
-          Impossibile caricare il breakdown per persona. Riprova.
+          )}
+          {mdFile?.driveUrl && (
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              href={mdFile.driveUrl}
+              target="_blank"
+              size="small"
+            >
+              Scarica Report
+            </Button>
+          )}
+        </Box>
+      </Box>
+
+      {report?.uploadError && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          {report.uploadError}
         </Alert>
       )}
 
-      {/* ── Loading state: skeleton before chart + DataGrid skeleton ── */}
-      {isLoading && (
-        <Skeleton variant="rounded" height={280} sx={{ mb: 3 }} />
-      )}
-
-      {/* ── Grouped BarChart: Visibility % vs Link Rate % per persona (>= 2 personas) ── */}
-      {!isLoading && !isError && showChart && (
-        <Box sx={{ mb: 3, overflowX: 'auto' }}>
-          <BarChart
-            xAxis={[
-              {
-                data: personaNames,
-                scaleType: 'band',
-                // X axis shows persona names — no % sign needed here per spec
-              },
-            ]}
-            yAxis={[
-              {
-                valueFormatter: (v: number) => `${v}%`,
-              },
-            ]}
-            series={[
-              {
-                data: visibilityValues,
-                label: 'Visibility %',
-                color: '#1565C0', // color.brand.primary
-                valueFormatter: (v: number | null) =>
-                  v !== null ? `${v.toFixed(1)}%` : '',
-              },
-              {
-                data: linkRateValues,
-                label: 'Link Rate %',
-                color: '#00ACC1', // color.brand.accent
-                valueFormatter: (v: number | null) =>
-                  v !== null ? `${v.toFixed(1)}%` : '',
-              },
-            ]}
-            height={280}
-            margin={{ left: 60, right: 20, top: 16, bottom: 60 }}
-          />
+      {(reportLoading || (!report?.files.length && !report?.uploadError)) && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 4 }}>
+          <CircularProgress size={18} />
+          <Typography variant="body2" color="text.secondary">
+            Report in generazione, disponibile a breve…
+          </Typography>
         </Box>
       )}
 
-      {/* ── DataGrid (all states: shown when data arrives, includes empty state) ── */}
-      {!isLoading && !isError && (
-        <Box sx={{ height: 520 }}>
-          <DataGrid
-            rows={rows}
-            columns={columns}
-            disableRowSelectionOnClick
-            initialState={{
-              sorting: { sortModel: [{ field: 'visibilityPct', sort: 'desc' }] },
-            }}
-            slots={{
-              noRowsOverlay: () => (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                  }}
-                >
-                  <Typography color="text.secondary">
-                    Nessuna persona trovata per questa run.
-                    {rows.length === 0 && (
-                      <Box component="span" display="block" mt={0.5}>
-                        <Typography variant="caption" color="text.disabled">
-                          Se la run era in testMode con 0 query, nessuna persona potrebbe essere stata processata.
-                        </Typography>
-                      </Box>
-                    )}
-                  </Typography>
-                </Box>
-              ),
-            }}
+      {mdFile?.content && (
+        <Card sx={{ p: { xs: 2, md: 4 } }}>
+          <Box
             sx={{
-              '& .MuiDataGrid-columnHeaders': { bgcolor: 'background.default' },
+              '& h1': { fontSize: '1.5rem', fontWeight: 700, mt: 3, mb: 1.5, color: 'text.primary' },
+              '& h2': { fontSize: '1.125rem', fontWeight: 700, mt: 3, mb: 1, color: 'text.primary', borderBottom: '1px solid', borderColor: 'divider', pb: 0.5 },
+              '& h3': { fontSize: '1rem', fontWeight: 600, mt: 2, mb: 0.5 },
+              '& p': { mb: 1.5, lineHeight: 1.7, color: 'text.secondary' },
+              '& ul, & ol': { pl: 3, mb: 1.5 },
+              '& li': { mb: 0.5, color: 'text.secondary' },
+              '& strong': { color: 'text.primary', fontWeight: 600 },
+              '& table': { width: '100%', borderCollapse: 'collapse', mb: 2 },
+              '& th': { bgcolor: 'background.default', fontWeight: 600, p: 1, borderBottom: '2px solid', borderColor: 'divider', textAlign: 'left' },
+              '& td': { p: 1, borderBottom: '1px solid', borderColor: 'divider' },
             }}
+            dangerouslySetInnerHTML={{ __html: markdownToHtml(mdFile.content) }}
           />
-        </Box>
+        </Card>
       )}
     </Box>
   )

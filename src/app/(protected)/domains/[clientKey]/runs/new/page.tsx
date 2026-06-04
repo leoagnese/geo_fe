@@ -1,25 +1,16 @@
 /**
  * SC-020 — New run configurator.
  *
- * Section 1 (required): profileKey select (GET /profiles, shows provider + models),
- * runIterations number input.
- * Section 2 (collapsible "Opzioni avanzate"): keywords override tag input,
- * locale multi-select, testMode/debugMode toggles.
- * Submit → POST /domains/:clientKey/runs.
- * If queued: info banner + redirect to monitor. If running: redirect to monitor.
+ * 4 sections (in order):
+ *   1. Active Run Settings   — client key, profile selection, iterations
+ *   2. Query Management      — global keywords, custom query mode, personas, country selection
+ *   3. Profile & Provider    — provider badge, model versions, response config (from selected profile)
+ *   4. Target Settings       — per-language tabs (IT/EN/FR): keyword list, max questions, location focus
  *
- * States:
- * - Loading: profiles dropdown disabled with "Caricamento profili…"
- * - Error: profile load failure inline; submit failure toast
- * - Empty: not applicable (creation form)
- * - Populated: form ready → submit triggers run
+ * Submit → POST /domains/:clientKey/runs.
  *
  * @implements US-007, US-008
  * @validates AC-011, AC-012, AC-013, AC-014, AC-015
- * @spec L1_design/screen-inventory.md §"SC-020"
- * @spec L1_design/states-and-empty.md §"SC-020"
- * @spec L1_design/patterns/forms.md
- * @figma — (Figma file not yet created)
  */
 'use client'
 
@@ -40,14 +31,50 @@ import AccordionSummary from '@mui/material/AccordionSummary'
 import AccordionDetails from '@mui/material/AccordionDetails'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Switch from '@mui/material/Switch'
+import Checkbox from '@mui/material/Checkbox'
 import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
 import Divider from '@mui/material/Divider'
+import Chip from '@mui/material/Chip'
+import Tabs from '@mui/material/Tabs'
+import Tab from '@mui/material/Tab'
+import Tooltip from '@mui/material/Tooltip'
+import CircularProgress from '@mui/material/CircularProgress'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import LockIcon from '@mui/icons-material/Lock'
 import TagInput from '@/components/TagInput'
-import { getProfiles, createRun, ApiError, type LlmProfile } from '@/lib/api-client'
+import {
+  getProfiles,
+  getPersonas,
+  createRun,
+  ApiError,
+  type LlmProfile,
+  type Persona,
+} from '@/lib/api-client'
 
-const LOCALE_OPTIONS = ['it-IT', 'en-US', 'en-GB', 'fr-FR', 'de-DE', 'es-ES']
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const LANG_OPTIONS = [
+  { code: 'it', label: 'Italiano', flag: '🇮🇹', defaultLocation: 'Italia' },
+  { code: 'en', label: 'English', flag: '🇬🇧', defaultLocation: 'United Kingdom' },
+  { code: 'fr', label: 'Français', flag: '🇫🇷', defaultLocation: 'France' },
+] as const
+
+type LangCode = (typeof LANG_OPTIONS)[number]['code']
+
+const PROVIDER_LABELS: Record<string, string> = {
+  openai: 'OpenAI',
+  gemini: 'Google Gemini',
+  perplexity: 'Perplexity AI',
+}
+
+// ─── Zod schema ───────────────────────────────────────────────────────────────
+
+const LangSettingsSchema = z.object({
+  keywords: z.array(z.string()).default([]),
+  questionsCount: z.number().int().min(1).default(10),
+  locationFocus: z.string().default(''),
+})
 
 const NewRunSchema = z.object({
   profileKey: z.string().min(1, 'Seleziona un profilo LLM'),
@@ -55,110 +82,144 @@ const NewRunSchema = z.object({
     .number({ invalid_type_error: 'Inserisci un numero intero' })
     .int()
     .min(1, 'Almeno 1 iterazione'),
-  locales: z.array(z.string()).default([]),
-  keywordsOverride: z.array(z.string()).default([]),
+  globalKeywords: z.array(z.string()).default([]),
+  activeLocales: z.array(z.string()).min(1, 'Seleziona almeno un paese'),
+  activePersonaIds: z.array(z.string()).min(1, 'Seleziona almeno una persona'),
+  langs: z.object({
+    it: LangSettingsSchema,
+    en: LangSettingsSchema,
+    fr: LangSettingsSchema,
+  }),
   testMode: z.boolean().default(false),
   debugMode: z.boolean().default(false),
 })
 
 type NewRunForm = z.infer<typeof NewRunSchema>
 
-interface NewRunPageProps {
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+interface Props {
   params: { clientKey: string }
 }
 
-export default function NewRunPage({ params }: NewRunPageProps) {
+export default function NewRunPage({ params }: Props) {
   const { clientKey } = params
   const { data: session } = useSession()
   const router = useRouter()
+
   const [queuedBanner, setQueuedBanner] = useState(false)
   const [errorToast, setErrorToast] = useState<string | null>(null)
+  const [activeLangTab, setActiveLangTab] = useState<LangCode>('it')
 
-  // Load LLM profiles for the dropdown (AC-012)
-  const {
-    data: profilesData,
-    isLoading: profilesLoading,
-    isError: profilesError,
-    refetch: refetchProfiles,
-  } = useQuery({
-    queryKey: ['profiles'],
-    queryFn: () => getProfiles(session?.accessToken ?? ''),
-    enabled: !!session?.accessToken,
-  })
+  const { data: profilesData, isLoading: profilesLoading, isError: profilesError, refetch: refetchProfiles } =
+    useQuery({ queryKey: ['profiles'], queryFn: () => getProfiles(session?.accessToken ?? ''), enabled: !!session?.accessToken })
+
+  const { data: personasData, isLoading: personasLoading } =
+    useQuery({ queryKey: ['personas'], queryFn: () => getPersonas(session?.accessToken ?? ''), enabled: !!session?.accessToken })
 
   const profiles: LlmProfile[] = profilesData?.data ?? []
+  const personas: Persona[] = personasData?.data ?? []
+  const allPersonaIds = personas.map((p) => p.id)
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    watch,
-    formState: { errors },
-  } = useForm<NewRunForm>({
+  const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<NewRunForm>({
     resolver: zodResolver(NewRunSchema),
     defaultValues: {
       profileKey: '',
       runIterations: 3,
-      locales: [],
-      keywordsOverride: [],
+      globalKeywords: [],
+      activeLocales: ['it'],
+      activePersonaIds: [],
+      langs: {
+        it: { keywords: [], questionsCount: 10, locationFocus: '' },
+        en: { keywords: [], questionsCount: 10, locationFocus: '' },
+        fr: { keywords: [], questionsCount: 10, locationFocus: '' },
+      },
       testMode: false,
       debugMode: false,
     },
   })
 
   const selectedProfileKey = watch('profileKey')
+  const activeLocales = watch('activeLocales')
+  const activePersonaIds = watch('activePersonaIds')
   const selectedProfile = profiles.find((p) => p.profileKey === selectedProfileKey)
 
+  // Pre-select all personas when catalog loads
+  if (personas.length > 0 && activePersonaIds.length === 0) {
+    setValue('activePersonaIds', allPersonaIds)
+  }
+
+  function toggleLocale(code: string) {
+    const next = activeLocales.includes(code)
+      ? activeLocales.filter((l) => l !== code)
+      : [...activeLocales, code]
+    setValue('activeLocales', next, { shouldValidate: true })
+    if (!next.includes(activeLangTab)) {
+      const first = LANG_OPTIONS.find((l) => next.includes(l.code))
+      if (first) setActiveLangTab(first.code)
+    }
+  }
+
+  function togglePersona(id: string) {
+    const next = activePersonaIds.includes(id)
+      ? activePersonaIds.filter((x) => x !== id)
+      : [...activePersonaIds, id]
+    setValue('activePersonaIds', next, { shouldValidate: true })
+  }
+
   const createRunMutation = useMutation({
-    mutationFn: (data: NewRunForm) =>
-      createRun(session?.accessToken ?? '', clientKey, {
+    mutationFn: (data: NewRunForm) => {
+      const keywordsByLang = Object.fromEntries(
+        data.activeLocales.map((lang) => [
+          lang,
+          [...data.globalKeywords, ...data.langs[lang as LangCode].keywords],
+        ]),
+      )
+      const questionsCountByLang = Object.fromEntries(
+        data.activeLocales.map((lang) => [lang, data.langs[lang as LangCode].questionsCount]),
+      )
+      const locationFocusByLang = Object.fromEntries(
+        data.activeLocales
+          .filter((lang) => data.langs[lang as LangCode].locationFocus)
+          .map((lang) => [lang, data.langs[lang as LangCode].locationFocus]),
+      )
+
+      return createRun(session?.accessToken ?? '', clientKey, {
         profileKey: data.profileKey,
         runIterations: data.runIterations,
-        locales: data.locales.length > 0 ? data.locales : undefined,
-        keywordsOverride: data.keywordsOverride.length > 0 ? data.keywordsOverride : undefined,
+        locales: data.activeLocales,
+        keywordsByLang,
+        questionsCountByLang,
+        activePersonaIds: data.activePersonaIds,
+        locationFocusByLang,
         testMode: data.testMode,
         debugMode: data.debugMode,
-      }),
+      })
+    },
     onSuccess: (result) => {
       const { runId, status } = result.data
       if (status === 'queued') {
-        // AC-013: show queued banner briefly then redirect to monitor
         setQueuedBanner(true)
-        setTimeout(() => {
-          router.push(`/domains/${clientKey}/runs/${runId}`)
-        }, 2000)
+        setTimeout(() => router.push(`/domains/${clientKey}/runs/${runId}`), 2000)
       } else {
-        // status === 'running': redirect immediately to monitor (AC-015)
         router.push(`/domains/${clientKey}/runs/${runId}`)
       }
     },
     onError: (err) => {
       if (err instanceof ApiError) {
-        if (err.status === 502) {
-          setErrorToast('Avvio run fallito: n8n non raggiungibile. La run è in stato errore.')
-          return
-        }
-        if (err.status === 422) {
-          setErrorToast(`Validazione fallita: ${err.message}`)
-          return
-        }
-        if (err.status === 404) {
-          setErrorToast(`Profilo o dominio non trovato: ${err.message}`)
-          return
-        }
+        if (err.status === 502) { setErrorToast('Avvio run fallito: n8n non raggiungibile.'); return }
+        if (err.status === 422) { setErrorToast(`Validazione fallita: ${err.message}`); return }
+        if (err.status === 404) { setErrorToast(`Profilo o dominio non trovato: ${err.message}`); return }
       }
       setErrorToast('Errore interno. Riprova.')
     },
   })
 
+  const visibleLangTabs = LANG_OPTIONS.filter((l) => activeLocales.includes(l.code))
+
   return (
-    <Box sx={{ maxWidth: 720, mx: 'auto' }}>
-      <Typography variant="h1" gutterBottom>
-        Nuova run
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-        Dominio: <strong>{clientKey}</strong>
-      </Typography>
+    <Box sx={{ maxWidth: 820, mx: 'auto', pb: 6 }}>
+      <Typography variant="h1" gutterBottom>Nuova run</Typography>
 
       <Box
         component="form"
@@ -166,201 +227,540 @@ export default function NewRunPage({ params }: NewRunPageProps) {
         noValidate
         sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}
       >
-        {/* ── Section 1: Required fields ─── */}
 
-        {/* profileKey select — AC-012 */}
-        {profilesError ? (
-          <Alert
-            severity="error"
-            action={
-              <Button color="inherit" size="small" onClick={() => void refetchProfiles()}>
-                Riprova
-              </Button>
-            }
-          >
-            Impossibile caricare i profili LLM.
-          </Alert>
-        ) : (
-          <Controller
-            name="profileKey"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                select
-                label="Profilo LLM"
-                disabled={profilesLoading}
-                error={!!errors.profileKey}
-                helperText={
-                  errors.profileKey?.message ??
-                  (profilesLoading ? 'Caricamento profili…' : 'Seleziona il profilo per questa run')
-                }
-              >
-                {profiles.map((p) => (
-                  <MenuItem key={p.profileKey} value={p.profileKey}>
-                    {p.profileKey}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
-          />
-        )}
+        {/* ═══════════════════════════════════════════════════════
+            1. ACTIVE RUN SETTINGS
+        ═══════════════════════════════════════════════════════ */}
+        <ConfigSection label="1" title="Active Run Settings">
 
-        {/* Profile model summary (shown when a profile is selected) — AC-012 */}
-        {selectedProfile && (
-          <Box
-            sx={{
-              p: 2,
-              borderRadius: 'var(--geo-radius-md)',
-              bgcolor: 'background.paper',
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 1 }}>
-              Dettagli profilo selezionato
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Provider</Typography>
-                <Typography variant="body2" fontWeight={600}>{selectedProfile.llmProvider}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Run model</Typography>
-                <Typography variant="body2">{selectedProfile.runModel}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Qgen model</Typography>
-                <Typography variant="body2">{selectedProfile.qgenModel}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">NER model</Typography>
-                <Typography variant="body2">{selectedProfile.nerModel}</Typography>
-              </Box>
+          {/* Client key — read-only */}
+          <FieldRow label="Client Key">
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Chip
+                label={clientKey}
+                size="small"
+                sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13 }}
+              />
+              <Typography variant="caption" color="text.secondary">dominio attivo</Typography>
             </Box>
-          </Box>
-        )}
+          </FieldRow>
 
-        {/* runIterations */}
-        <TextField
-          label="Numero di iterazioni"
-          type="number"
-          inputProps={{ min: 1, step: 1 }}
-          {...register('runIterations', { valueAsNumber: true })}
-          error={!!errors.runIterations}
-          helperText={
-            errors.runIterations?.message ??
-            'Quante volte ogni query viene eseguita (per affidabilità statistica)'
-          }
-        />
+          {/* Profile selection */}
+          <FieldRow label="Profile Selection">
+            {profilesError ? (
+              <Alert severity="error" action={
+                <Button color="inherit" size="small" onClick={() => void refetchProfiles()}>Riprova</Button>
+              }>
+                Impossibile caricare i profili LLM.
+              </Alert>
+            ) : (
+              <Controller
+                name="profileKey"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    select
+                    label="Profilo LLM"
+                    size="small"
+                    fullWidth
+                    disabled={profilesLoading}
+                    error={!!errors.profileKey}
+                    helperText={errors.profileKey?.message ?? (profilesLoading ? 'Caricamento…' : undefined)}
+                  >
+                    {profiles.map((p) => (
+                      <MenuItem key={p.profileKey} value={p.profileKey}>
+                        {p.profileKey}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
+              />
+            )}
+          </FieldRow>
 
-        <Divider sx={{ my: 1 }} />
+          {/* Run iterations */}
+          <FieldRow label="Run Iterations">
+            <TextField
+              label="Iterazioni"
+              type="number"
+              size="small"
+              inputProps={{ min: 1, step: 1 }}
+              {...register('runIterations', { valueAsNumber: true })}
+              error={!!errors.runIterations}
+              helperText={errors.runIterations?.message ?? 'Numero di ripetizioni per affidabilità statistica'}
+              sx={{ maxWidth: 200 }}
+            />
+          </FieldRow>
 
-        {/* ── Section 2: Optional (collapsible Accordion) — forms.md */}
-        <Accordion>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="body1" fontWeight={600}>
-              Opzioni avanzate
+        </ConfigSection>
+
+        {/* ═══════════════════════════════════════════════════════
+            2. QUERY MANAGEMENT
+        ═══════════════════════════════════════════════════════ */}
+        <ConfigSection label="2" title="Query Management">
+
+          {/* Global keywords */}
+          <FieldRow label="Keywords">
+            <Controller
+              name="globalKeywords"
+              control={control}
+              render={({ field }) => (
+                <TagInput
+                  label="Keyword globali (tutte le lingue)"
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Aggiungi keyword e premi Invio"
+                />
+              )}
+            />
+            <Typography variant="caption" color="text.secondary">
+              Queste keyword vengono aggiunte a tutte le lingue attive. Keyword specifiche per lingua si configurano nella sezione 4.
             </Typography>
+          </FieldRow>
+
+          <Divider />
+
+          {/* Custom query mode — locked */}
+          <FieldRow label="Custom Query">
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Tooltip title="Le query vengono generate automaticamente dall'AI. La modalità custom query non è ancora disponibile." placement="top">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Switch disabled checked={false} size="small" />
+                  <Typography variant="body2" color="text.disabled">Custom query mode</Typography>
+                  <LockIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+                </Box>
+              </Tooltip>
+              <Chip label="AI-generated" size="small" variant="outlined" sx={{ fontSize: 11, height: 20 }} />
+            </Box>
+          </FieldRow>
+
+          <Divider />
+
+          {/* Persona selection */}
+          <FieldRow
+            label="Personas"
+            badge={`${activePersonaIds.length}/${personas.length} attive`}
+          >
+            {personasLoading ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={16} />
+                <Typography variant="caption" color="text.secondary">Caricamento personas…</Typography>
+              </Box>
+            ) : (
+              <>
+                <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
+                  <Button size="small" variant="outlined" sx={{ fontSize: 11, py: 0.25, px: 1, minWidth: 0 }}
+                    onClick={() => setValue('activePersonaIds', allPersonaIds, { shouldValidate: true })}>
+                    Tutte
+                  </Button>
+                  <Button size="small" variant="outlined" sx={{ fontSize: 11, py: 0.25, px: 1, minWidth: 0 }}
+                    onClick={() => setValue('activePersonaIds', [], { shouldValidate: true })}>
+                    Nessuna
+                  </Button>
+                </Box>
+
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
+                  {personas.map((persona) => {
+                    const checked = activePersonaIds.includes(persona.id)
+                    return (
+                      <PersonaCard
+                        key={persona.id}
+                        persona={persona}
+                        checked={checked}
+                        onToggle={() => togglePersona(persona.id)}
+                      />
+                    )
+                  })}
+                </Box>
+
+                {errors.activePersonaIds && (
+                  <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
+                    {errors.activePersonaIds.message}
+                  </Typography>
+                )}
+              </>
+            )}
+          </FieldRow>
+
+          <Divider />
+
+          {/* Country selection */}
+          <FieldRow
+            label="Country"
+            badge={`${activeLocales.length} ${activeLocales.length === 1 ? 'paese' : 'paesi'}`}
+          >
+            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+              {LANG_OPTIONS.map(({ code, label, flag }) => {
+                const active = activeLocales.includes(code)
+                return (
+                  <Box
+                    key={code}
+                    onClick={() => toggleLocale(code)}
+                    sx={{
+                      display: 'flex', alignItems: 'center', gap: 1,
+                      px: 2, py: 1,
+                      border: '1px solid',
+                      borderColor: active ? 'primary.main' : 'divider',
+                      borderRadius: 'var(--geo-radius-md)',
+                      bgcolor: active ? 'primary.main' : 'background.paper',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      userSelect: 'none',
+                      '&:hover': { borderColor: 'primary.main' },
+                    }}
+                  >
+                    <Checkbox
+                      checked={active} size="small" disableRipple
+                      sx={{ p: 0, color: active ? 'primary.contrastText' : 'text.disabled',
+                        '&.Mui-checked': { color: 'primary.contrastText' } }}
+                    />
+                    <Typography variant="body2" fontWeight={600}
+                      sx={{ color: active ? 'primary.contrastText' : 'text.primary' }}>
+                      {flag} {label}
+                    </Typography>
+                  </Box>
+                )
+              })}
+            </Box>
+            {errors.activeLocales && (
+              <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
+                {errors.activeLocales.message}
+              </Typography>
+            )}
+          </FieldRow>
+
+        </ConfigSection>
+
+        {/* ═══════════════════════════════════════════════════════
+            3. PROFILE & PROVIDER MANAGEMENT
+        ═══════════════════════════════════════════════════════ */}
+        <ConfigSection label="3" title="Profile & Provider Management">
+          {!selectedProfile ? (
+            <Box sx={{ py: 2, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.disabled">
+                Seleziona un profilo LLM nella sezione 1 per vedere la configurazione provider.
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              {/* Provider + run model */}
+              <FieldRow label="Primary LLM Provider">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Chip
+                    label={PROVIDER_LABELS[selectedProfile.llmProvider] ?? selectedProfile.llmProvider}
+                    color="primary"
+                    size="small"
+                    sx={{ fontWeight: 700 }}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedProfile.profileKey}
+                  </Typography>
+                </Box>
+              </FieldRow>
+
+              <FieldRow label="Model Version">
+                <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                  {[
+                    ['Run model', selectedProfile.runModel],
+                    ['QGen model', selectedProfile.qgenModel],
+                    ['NER model', selectedProfile.nerModel],
+                  ].map(([lbl, val]) => (
+                    <Box key={lbl}>
+                      <Typography variant="caption" color="text.secondary" display="block">{lbl}</Typography>
+                      <Typography variant="body2" fontWeight={600} sx={{ fontFamily: 'monospace' }}>{val}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </FieldRow>
+
+              {/* Response config (if present) */}
+              {selectedProfile.responsesCfg && Object.keys(selectedProfile.responsesCfg).length > 0 && (
+                <FieldRow label="Response Config">
+                  <Box sx={{
+                    display: 'flex', gap: 1, flexWrap: 'wrap',
+                    p: 1.5,
+                    bgcolor: 'background.default',
+                    borderRadius: 'var(--geo-radius-sm)',
+                    border: '1px solid', borderColor: 'divider',
+                  }}>
+                    {Object.entries(selectedProfile.responsesCfg).map(([key, val]) => (
+                      <Chip
+                        key={key}
+                        label={`${key}: ${String(val)}`}
+                        size="small"
+                        variant="outlined"
+                        sx={{ fontSize: 11, fontFamily: 'monospace' }}
+                      />
+                    ))}
+                  </Box>
+                </FieldRow>
+              )}
+            </>
+          )}
+        </ConfigSection>
+
+        {/* ═══════════════════════════════════════════════════════
+            4. TARGET SETTINGS & KEYWORDS
+        ═══════════════════════════════════════════════════════ */}
+        <ConfigSection label="4" title="Target Settings & Keywords">
+          {activeLocales.length === 0 ? (
+            <Box sx={{ py: 2, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.disabled">
+                Seleziona almeno un paese nella sezione 2 per configurare le impostazioni per lingua.
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              {/* Tab bar — only active languages */}
+              <Tabs
+                value={visibleLangTabs.some((l) => l.code === activeLangTab) ? activeLangTab : visibleLangTabs[0]?.code}
+                onChange={(_, v: LangCode) => setActiveLangTab(v)}
+                sx={{ borderBottom: '1px solid', borderColor: 'divider', mb: 3 }}
+              >
+                {visibleLangTabs.map(({ code, label, flag }) => (
+                  <Tab key={code} value={code} label={`${flag} ${label}`} sx={{ fontWeight: 600, fontSize: 13 }} />
+                ))}
+              </Tabs>
+
+              {/* Tab content */}
+              {visibleLangTabs.map(({ code, defaultLocation }) => {
+                const currentTab = visibleLangTabs.some((l) => l.code === activeLangTab)
+                  ? activeLangTab
+                  : visibleLangTabs[0]?.code
+                if (code !== currentTab) return null
+                return (
+                  <Box key={code} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+
+                    {/* Keyword list manager */}
+                    <FieldRow label="Keyword List">
+                      <Controller
+                        name={`langs.${code}.keywords`}
+                        control={control}
+                        render={({ field }) => (
+                          <TagInput
+                            label={`Keyword specifiche per ${code.toUpperCase()}`}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Aggiungi keyword e premi Invio"
+                          />
+                        )}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        Vengono aggiunte alle keyword globali della sezione 2.
+                        {watch('globalKeywords').length > 0 && (
+                          <> Keyword globali attive: <strong>{watch('globalKeywords').join(', ')}</strong></>
+                        )}
+                      </Typography>
+                    </FieldRow>
+
+                    {/* Max questions per run */}
+                    <FieldRow label="Max Questions / Run">
+                      <Controller
+                        name={`langs.${code}.questionsCount`}
+                        control={control}
+                        render={({ field }) => (
+                          <TextField
+                            {...field}
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                            label="Domande per keyword"
+                            type="number"
+                            size="small"
+                            inputProps={{ min: 1, step: 1 }}
+                            error={!!errors.langs?.[code]?.questionsCount}
+                            helperText={errors.langs?.[code]?.questionsCount?.message ?? 'Quante domande AI generare per ciascuna keyword'}
+                            sx={{ maxWidth: 200 }}
+                          />
+                        )}
+                      />
+                    </FieldRow>
+
+                    {/* Location focus */}
+                    <FieldRow label="Location Focus">
+                      <Controller
+                        name={`langs.${code}.locationFocus`}
+                        control={control}
+                        render={({ field }) => (
+                          <TextField
+                            {...field}
+                            label="Città / Area (facoltativo)"
+                            size="small"
+                            placeholder={defaultLocation}
+                            helperText="Override della localizzazione per le ricerche web. Lascia vuoto per usare il default paese."
+                            sx={{ maxWidth: 320 }}
+                          />
+                        )}
+                      />
+                    </FieldRow>
+
+                  </Box>
+                )
+              })}
+            </>
+          )}
+        </ConfigSection>
+
+        {/* ═══════════════════════════════════════════════════════
+            Advanced options (collapsible)
+        ═══════════════════════════════════════════════════════ */}
+        <Accordion sx={{
+          border: '1px solid', borderColor: 'divider',
+          borderRadius: 'var(--geo-radius-md) !important',
+          '&:before': { display: 'none' }, boxShadow: 'none',
+        }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="body2" fontWeight={600} color="text.secondary">Opzioni avanzate</Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {/* keywordsOverride */}
-              <Controller
-                name="keywordsOverride"
-                control={control}
-                render={({ field }) => (
-                  <TagInput
-                    label="Override keyword (facoltativo)"
-                    value={field.value}
-                    onChange={field.onChange}
-                    placeholder="Aggiungi keyword e premi Invio"
-                  />
-                )}
-              />
-
-              {/* locales multi-select */}
-              <Controller
-                name="locales"
-                control={control}
-                render={({ field }) => (
-                  <TagInput
-                    label="Locale (facoltativo)"
-                    value={field.value}
-                    onChange={field.onChange}
-                    options={LOCALE_OPTIONS}
-                    placeholder="Seleziona locale"
-                  />
-                )}
-              />
-
-              {/* testMode */}
-              <Controller
-                name="testMode"
-                control={control}
-                render={({ field }) => (
-                  <FormControlLabel
-                    control={<Switch checked={field.value} onChange={field.onChange} />}
-                    label="Test mode (numero ridotto di query)"
-                  />
-                )}
-              />
-
-              {/* debugMode */}
-              <Controller
-                name="debugMode"
-                control={control}
-                render={({ field }) => (
-                  <FormControlLabel
-                    control={<Switch checked={field.value} onChange={field.onChange} />}
-                    label="Debug mode (log dettagliati)"
-                  />
-                )}
-              />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Controller name="testMode" control={control} render={({ field }) => (
+                <FormControlLabel control={<Switch checked={field.value} onChange={field.onChange} />}
+                  label="Test mode — numero ridotto di query" />
+              )} />
+              <Controller name="debugMode" control={control} render={({ field }) => (
+                <FormControlLabel control={<Switch checked={field.value} onChange={field.onChange} />}
+                  label="Debug mode — log dettagliati" />
+              )} />
             </Box>
           </AccordionDetails>
         </Accordion>
 
-        {/* Submit / cancel */}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
-          <Button
-            variant="text"
-            onClick={() => router.push(`/domains/${clientKey}`)}
-            disabled={createRunMutation.isPending}
-            sx={{ color: 'text.secondary' }}
-          >
+        {/* Actions */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+          <Button variant="text" onClick={() => router.push(`/domains/${clientKey}`)}
+            disabled={createRunMutation.isPending} sx={{ color: 'text.secondary' }}>
             Annulla
           </Button>
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={createRunMutation.isPending}
-          >
+          <Button type="submit" variant="contained" disabled={createRunMutation.isPending || activeLocales.length === 0}>
             {createRunMutation.isPending ? 'Avvio…' : 'Avvia run'}
           </Button>
         </Box>
+
       </Box>
 
-      {/* Queued banner (AC-013) */}
-      <Snackbar
-        open={queuedBanner}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert severity="info">
-          Run in coda — partirà automaticamente al termine della run in corso. Reindirizzamento…
-        </Alert>
+      {/* Toasts */}
+      <Snackbar open={queuedBanner} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+        <Alert severity="info">Run in coda — reindirizzamento…</Alert>
       </Snackbar>
+      <Snackbar open={!!errorToast} onClose={() => setErrorToast(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
+        <Alert severity="error" onClose={() => setErrorToast(null)}>{errorToast}</Alert>
+      </Snackbar>
+    </Box>
+  )
+}
 
-      {/* Error toast */}
-      <Snackbar
-        open={!!errorToast}
-        onClose={() => setErrorToast(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert severity="error" onClose={() => setErrorToast(null)}>
-          {errorToast}
-        </Alert>
-      </Snackbar>
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function ConfigSection({
+  label,
+  title,
+  children,
+}: {
+  label: string
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <Box sx={{
+      border: '1px solid', borderColor: 'divider',
+      borderRadius: 'var(--geo-radius-md)',
+      overflow: 'hidden',
+      bgcolor: 'background.paper',
+    }}>
+      {/* Header */}
+      <Box sx={{
+        px: 3, py: 1.75,
+        display: 'flex', alignItems: 'center', gap: 1.5,
+        borderBottom: '1px solid', borderColor: 'divider',
+        bgcolor: 'background.default',
+      }}>
+        <Box sx={{
+          width: 24, height: 24, borderRadius: '50%',
+          bgcolor: 'primary.main',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <Typography variant="caption" fontWeight={700} sx={{ color: 'primary.contrastText', lineHeight: 1 }}>
+            {label}
+          </Typography>
+        </Box>
+        <Typography variant="body1" fontWeight={700}>{title}</Typography>
+      </Box>
+
+      {/* Body */}
+      <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+        {children}
+      </Box>
+    </Box>
+  )
+}
+
+function FieldRow({
+  label,
+  badge,
+  children,
+}: {
+  label: string
+  badge?: string
+  children: React.ReactNode
+}) {
+  return (
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '180px 1fr' }, gap: { xs: 1, sm: 2 }, alignItems: 'flex-start' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pt: { sm: 0.5 } }}>
+        <Typography variant="body2" fontWeight={600} color="text.secondary" sx={{ lineHeight: 1.4 }}>
+          {label}
+        </Typography>
+        {badge && (
+          <Chip label={badge} size="small" sx={{ height: 18, fontSize: 10, ml: 'auto' }} />
+        )}
+      </Box>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+        {children}
+      </Box>
+    </Box>
+  )
+}
+
+function PersonaCard({
+  persona,
+  checked,
+  onToggle,
+}: {
+  persona: Persona
+  checked: boolean
+  onToggle: () => void
+}) {
+  return (
+    <Box
+      onClick={onToggle}
+      sx={{
+        display: 'flex', gap: 1.5, alignItems: 'flex-start',
+        p: 1.5,
+        border: '1px solid',
+        borderColor: checked ? 'primary.main' : 'divider',
+        borderRadius: 'var(--geo-radius-sm)',
+        bgcolor: checked ? 'primary.main' : 'background.paper',
+        cursor: 'pointer',
+        transition: 'all 0.12s',
+        '&:hover': { borderColor: 'primary.main' },
+      }}
+    >
+      <Checkbox
+        checked={checked} size="small" disableRipple
+        sx={{ p: 0, mt: 0.25, flexShrink: 0,
+          color: checked ? 'primary.contrastText' : 'text.disabled',
+          '&.Mui-checked': { color: 'primary.contrastText' } }}
+      />
+      <Box>
+        <Typography variant="body2" fontWeight={600}
+          sx={{ color: checked ? 'primary.contrastText' : 'text.primary', lineHeight: 1.3 }}>
+          {persona.name}
+        </Typography>
+        <Typography variant="caption"
+          sx={{ color: checked ? 'primary.contrastText' : 'text.secondary', opacity: checked ? 0.85 : 1, display: 'block', mt: 0.25 }}>
+          {persona.description}
+        </Typography>
+      </Box>
     </Box>
   )
 }

@@ -1,18 +1,17 @@
 /**
- * SC-032 — Keyword breakdown.
+ * SC-032 — Query Metrics.
  *
- * Primary view: horizontal bar chart sorted by visibility % descending (top 25 keywords).
- * Bar length communicates visibility %; single color #1565C0 (color.brand.primary).
- * Detailed data: Accordion (collapsed by default) containing the full DataGrid.
+ * Sezione 1: horizontal bar chart top-25 keyword + accordion DataGrid dettagliato.
+ * Sezione 2: breakdown per persona in DataGrid.
  *
  * States:
  * - Loading: Skeleton height 320
- * - Error: inline error with retry
+ * - Error: inline error con retry
  * - Empty: "Nessuna keyword trovata" Typography
- * - Populated: horizontal BarChart + collapsed Accordion with DataGrid
+ * - Populated: horizontal BarChart + Accordion DataGrid + sezione Personas
  *
- * @implements US-015
- * @validates AC-024
+ * @implements US-015, US-016
+ * @validates AC-024, AC-025
  * @spec L1_design/screen-inventory.md §"SC-032"
  * @spec L1_design/states-and-empty.md §"SC-032"
  * @figma — (Figma file not yet created)
@@ -32,15 +31,15 @@ import AccordionDetails from '@mui/material/AccordionDetails'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { BarChart } from '@mui/x-charts/BarChart'
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
-import { getRunKeywords, type KeywordBreakdownRow } from '@/lib/api-client'
+import { getRunKeywords, getRunPersonas, type KeywordBreakdownRow, type PersonaBreakdownRow } from '@/lib/api-client'
 
 interface KeywordsPageProps {
   params: { clientKey: string; runId: string }
 }
 
 type KeywordRow = KeywordBreakdownRow & { id: string }
+type PersonaRow = PersonaBreakdownRow & { id: string }
 
-/** Truncate a string to maxLen characters, appending ellipsis if needed */
 function truncate(s: string, maxLen: number): string {
   return s.length > maxLen ? `${s.slice(0, maxLen)}…` : s
 }
@@ -60,20 +59,26 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
     enabled: !!session?.accessToken,
   })
 
+  const {
+    data: personasData,
+    isLoading: personasLoading,
+  } = useQuery({
+    queryKey: ['run-personas', clientKey, runId],
+    queryFn: () => getRunPersonas(session?.accessToken ?? '', clientKey, runId),
+    enabled: !!session?.accessToken,
+  })
+
   const allRows: KeywordRow[] = (data?.data ?? []).map((r) => ({
     ...r,
     id: r.keyword,
   }))
 
-  // Top 25 keywords by visibility, descending — chart dataset
   const chartRows = [...allRows]
     .sort((a, b) => b.visibilityPct - a.visibilityPct)
     .slice(0, 25)
 
-  // Chart dimensions — 36px per keyword row, minimum 240px
   const chartHeight = Math.max(240, chartRows.length * 36)
 
-  // BarChart expects arrays of values aligned with yAxis categories
   const chartLabels = chartRows.map((r) => truncate(r.keyword, 30))
   const chartValues = chartRows.map((r) =>
     parseFloat((r.visibilityPct * 100).toFixed(1))
@@ -121,13 +126,30 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
     },
   ]
 
+  const personaColumns: GridColDef<PersonaRow>[] = [
+    { field: 'personaName', headerName: 'Persona', flex: 1, minWidth: 200 },
+    { field: 'queriesExecuted', headerName: 'Query', width: 100, type: 'number' },
+    {
+      field: 'visibilityPct',
+      headerName: 'Visibility %',
+      width: 130,
+      renderCell: (p) => `${((p.value as number) * 100).toFixed(1)}%`,
+    },
+    {
+      field: 'avgRankPosition',
+      headerName: 'Avg Rank',
+      width: 110,
+      renderCell: (p) => p.value !== null ? `#${(p.value as number).toFixed(1)}` : 'N/D',
+    },
+    { field: 'targetMentions', headerName: 'Menzioni', width: 120, type: 'number' },
+  ]
+
   return (
     <Box>
       <Typography variant="h2" sx={{ mb: 3 }}>
-        Breakdown per keyword
+        Query Metrics
       </Typography>
 
-      {/* ── Error state ── */}
       {isError && (
         <Alert
           severity="error"
@@ -142,22 +164,18 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
         </Alert>
       )}
 
-      {/* ── Loading state ── */}
       {isLoading && (
         <Skeleton variant="rounded" height={320} sx={{ mb: 3 }} />
       )}
 
-      {/* ── Empty state ── */}
       {!isLoading && !isError && allRows.length === 0 && (
         <Typography color="text.secondary" sx={{ mb: 3 }}>
           Nessuna keyword trovata.
         </Typography>
       )}
 
-      {/* ── Populated state: horizontal BarChart + Accordion DataGrid ── */}
       {!isLoading && !isError && allRows.length > 0 && (
         <>
-          {/* Horizontal bar chart — top 25 keywords by visibility */}
           <Box sx={{ mb: 3, overflowX: 'auto' }}>
             <BarChart
               layout="horizontal"
@@ -165,7 +183,6 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
                 {
                   data: chartLabels,
                   scaleType: 'band',
-                  // Y axis shows keyword names — no % sign needed here per spec
                 },
               ]}
               xAxis={[
@@ -178,7 +195,7 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
               series={[
                 {
                   data: chartValues,
-                  color: '#1565C0', // color.brand.primary — bar length communicates value
+                  color: '#1565C0',
                   label: 'Visibility %',
                   valueFormatter: (v: number | null) =>
                     v !== null ? `${v.toFixed(1)}%` : '',
@@ -189,8 +206,10 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
             />
           </Box>
 
-          {/* Accordion with full DataGrid — collapsed by default */}
-          <Accordion defaultExpanded={false} sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+          <Accordion
+            defaultExpanded={false}
+            sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
+          >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography variant="body2" fontWeight={600}>
                 Dati dettagliati
@@ -231,6 +250,26 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
           </Accordion>
         </>
       )}
+
+      <Box sx={{ mt: 5 }}>
+        <Typography variant="h2" sx={{ mb: 2 }}>
+          Breakdown per Persona
+        </Typography>
+
+        {personasLoading && <Skeleton variant="rounded" height={200} />}
+
+        {personasData && (
+          <Box sx={{ height: 400 }}>
+            <DataGrid
+              rows={(personasData.data ?? []).map((r) => ({ ...r, id: r.personaId }))}
+              columns={personaColumns}
+              disableRowSelectionOnClick
+              initialState={{ sorting: { sortModel: [{ field: 'visibilityPct', sort: 'desc' }] } }}
+              sx={{ '& .MuiDataGrid-columnHeaders': { bgcolor: 'background.default' } }}
+            />
+          </Box>
+        )}
+      </Box>
     </Box>
   )
 }

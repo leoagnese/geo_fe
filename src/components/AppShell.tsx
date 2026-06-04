@@ -23,6 +23,10 @@ import IconButton from '@mui/material/IconButton'
 import Button from '@mui/material/Button'
 import Divider from '@mui/material/Divider'
 import Chip from '@mui/material/Chip'
+import TextField from '@mui/material/TextField'
+import InputAdornment from '@mui/material/InputAdornment'
+import SearchIcon from '@mui/icons-material/Search'
+import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone'
 
 interface NavLink {
   label: string
@@ -31,10 +35,11 @@ interface NavLink {
 }
 
 const NAV_LINKS: NavLink[] = [
-  { label: 'Domini', path: '/domains' },
+  { label: 'Panoramica', path: '/domains' },
   { label: 'Utenti', path: '/admin/users', adminOnly: true },
   { label: 'Run globali', path: '/admin/runs', adminOnly: true },
   { label: 'Profili LLM', path: '/admin/profiles', adminOnly: true },
+  { label: 'Impostazioni', path: '/admin/domains', adminOnly: true },
 ]
 
 interface AppShellProps {
@@ -57,7 +62,6 @@ export default function AppShell({ children }: AppShellProps) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
 
-      {/* ── Top nav bar ── */}
       <AppBar
         position="sticky"
         elevation={0}
@@ -78,19 +82,36 @@ export default function AppShell({ children }: AppShellProps) {
           }}
         >
           {/* Logo */}
-          <Typography
-            variant="h3"
-            sx={{
-              fontWeight: 800,
-              color: 'primary.main',
-              cursor: 'pointer',
-              flexShrink: 0,
-              letterSpacing: '-0.02em',
-            }}
+          <Box
+            sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', flexShrink: 0 }}
             onClick={() => router.push('/domains')}
           >
-            GEO Analytics
-          </Typography>
+            <Box
+              sx={{
+                width: 28,
+                height: 28,
+                bgcolor: 'primary.main',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Typography sx={{ color: 'white', fontWeight: 800, fontSize: '0.9375rem', lineHeight: 1 }}>
+                G
+              </Typography>
+            </Box>
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 800,
+                color: 'primary.main',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              GEO Analytics
+            </Typography>
+          </Box>
 
           {/* Nav links */}
           <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 0.5 }}>
@@ -139,7 +160,33 @@ export default function AppShell({ children }: AppShellProps) {
             })}
           </Box>
 
-          <Box sx={{ flex: 1 }} />
+          {/* Search bar */}
+          <Box sx={{ flex: 1, display: { xs: 'none', md: 'flex' }, justifyContent: 'center', px: 2 }}>
+            <TextField
+              size="small"
+              placeholder="Cerca brand…"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" color="action" />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                maxWidth: 320,
+                width: '100%',
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '20px',
+                  bgcolor: 'background.default',
+                },
+              }}
+            />
+          </Box>
+
+          {/* Notification bell */}
+          <IconButton size="small" aria-label="notifiche">
+            <NotificationsNoneIcon fontSize="small" />
+          </IconButton>
 
           {/* User avatar */}
           <IconButton
@@ -186,7 +233,7 @@ export default function AppShell({ children }: AppShellProps) {
         </Toolbar>
       </AppBar>
 
-      {/* ── Page content ── */}
+      {/* Page content */}
       <Box
         component="main"
         sx={{
