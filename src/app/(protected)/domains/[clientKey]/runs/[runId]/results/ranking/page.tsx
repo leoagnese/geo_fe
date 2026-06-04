@@ -253,18 +253,12 @@ export default function RankingPage({ params }: RankingPageProps) {
             {targetScatter.length > 0 || competitorScatter.length > 0 ? (
               <ScatterChart
                 series={[
-                  {
-                    data: targetScatter,
-                    label: 'Target',
-                    color: theme.palette.primary.main,
-                    markerSize: 12,
-                  },
-                  {
-                    data: competitorScatter,
-                    label: 'Competitor',
-                    color: '#90A4AE',
-                    markerSize: 8,
-                  },
+                  ...(targetScatter.length > 0
+                    ? [{ data: targetScatter, label: 'Target', color: theme.palette.primary.main, markerSize: 12 }]
+                    : []),
+                  ...(competitorScatter.length > 0
+                    ? [{ data: competitorScatter, label: 'Competitor', color: '#90A4AE', markerSize: 8 }]
+                    : []),
                 ]}
                 xAxis={[{ label: 'Posizione media', min: 0, reverse: false }]}
                 yAxis={[{ label: 'AI Visibility Score' }]}
