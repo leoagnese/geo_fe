@@ -1,8 +1,9 @@
 /**
- * SC-010 — Domains dashboard.
+ * SC-010 — Projects & Domains overview.
  *
- * Two tabs: "Domini" (grid of domain cards) + "Analisi precedenti" (flat run list
- * across all analyst's domains, sorted by date desc).
+ * Layout: search + filter bar → domain table (TARGET DOMAIN / CLIENT KEY /
+ * ACTIVE RUNS / LAST ANALYSIS / VISIBILITY SCORE / ACTIONS) → 4 KPI summary
+ * cards at bottom.
  *
  * @implements US-004
  * @validates AC-008
@@ -14,126 +15,104 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import Box from '@mui/material/Box'
-import Grid from '@mui/material/Grid'
 import Card from '@mui/material/Card'
-import CardActionArea from '@mui/material/CardActionArea'
-import CardContent from '@mui/material/CardContent'
 import Skeleton from '@mui/material/Skeleton'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
 import Alert from '@mui/material/Alert'
 import InputAdornment from '@mui/material/InputAdornment'
-import Tabs from '@mui/material/Tabs'
-import Tab from '@mui/material/Tab'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
 import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
-import Paper from '@mui/material/Paper'
+import Chip from '@mui/material/Chip'
+import IconButton from '@mui/material/IconButton'
+import Pagination from '@mui/material/Pagination'
 import SearchIcon from '@mui/icons-material/Search'
 import AddIcon from '@mui/icons-material/Add'
-import StatusChip from '@/components/StatusChip'
+import FilterListIcon from '@mui/icons-material/FilterList'
+import LanguageIcon from '@mui/icons-material/Language'
+import PublicIcon from '@mui/icons-material/Public'
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
+import VisibilityIcon from '@mui/icons-material/Visibility'
+import TrendingUpIcon from '@mui/icons-material/TrendingUp'
+import CloseIcon from '@mui/icons-material/Close'
+import StatCard from '@/components/StatCard'
 import { getDomains, getRuns, type Domain } from '@/lib/api-client'
-import type { RunListItem, RunStatus } from '@/lib/api-client'
+import { getScoreColor } from '@/lib/theme'
 
-// ── Skeleton card (loading state) ──────────────────────────────
+const PAGE_SIZE = 8
 
-function DomainCardSkeleton() {
+// ── Visibility bar cell ────────────────────────────────────────
+
+function VisibilityBar({ score }: { score: number | null }) {
+  if (score === null) {
+    return <Typography variant="caption" color="text.disabled">N/D</Typography>
+  }
+  const color = getScoreColor(score)
   return (
-    <Card sx={{ height: 180 }}>
-      <CardContent>
-        <Skeleton variant="text" width="60%" height={32} />
-        <Skeleton variant="text" width="40%" height={20} sx={{ mt: 0.5 }} />
-        <Skeleton variant="text" width="80%" height={20} sx={{ mt: 1 }} />
-        <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-          <Skeleton variant="rounded" width={80} height={24} />
-          <Skeleton variant="rounded" width={80} height={24} />
-        </Box>
-        <Skeleton variant="rounded" width={100} height={24} sx={{ mt: 2 }} />
-      </CardContent>
-    </Card>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <Box
+        sx={{
+          flex: 1,
+          maxWidth: 96,
+          height: 6,
+          bgcolor: '#f1f5f9',
+          borderRadius: 'var(--geo-radius-full)',
+          overflow: 'hidden',
+        }}
+      >
+        <Box
+          sx={{
+            height: '100%',
+            width: `${score}%`,
+            bgcolor: color,
+            borderRadius: 'var(--geo-radius-full)',
+          }}
+        />
+      </Box>
+      <Typography
+        sx={{ fontSize: '0.875rem', fontWeight: 700, color, minWidth: 36, textAlign: 'right' }}
+      >
+        {score}%
+      </Typography>
+    </Box>
   )
 }
 
-// ── Domain card (populated state) ─────────────────────────────
+// ── Active filter chip ─────────────────────────────────────────
 
-interface DomainCardProps {
-  domain: Domain
-  onClick: () => void
-}
-
-function DomainCard({ domain, onClick }: DomainCardProps) {
-  const settoriVisible = domain.settori?.slice(0, 3) ?? []
-  const settoriMore = (domain.settori?.length ?? 0) - 3
-
+function FilterChip({ label, onDelete }: { label: string; onDelete: () => void }) {
   return (
-    <Card sx={{ height: '100%', cursor: 'pointer' }}>
-      <CardActionArea onClick={onClick} sx={{ height: '100%', alignItems: 'flex-start' }}>
-        <CardContent>
-          <Typography variant="h3" gutterBottom noWrap>
-            {domain.brand}
-          </Typography>
-          <Typography
-            variant="caption"
-            color="text.disabled"
-            sx={{ fontFamily: 'var(--geo-font-mono)', display: 'block', mb: 0.5 }}
-          >
-            {domain.clientKey}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" noWrap>
-            {domain.targetDomain}
-          </Typography>
-          {settoriVisible.length > 0 && (
-            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 1 }}>
-              {settoriVisible.map((s) => (
-                <Box
-                  key={s}
-                  component="span"
-                  sx={{
-                    px: 1,
-                    py: 0.25,
-                    borderRadius: 'var(--geo-radius-xs)',
-                    bgcolor: 'primary.main',
-                    color: 'primary.contrastText',
-                    fontSize: '0.625rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                  }}
-                >
-                  {s}
-                </Box>
-              ))}
-              {settoriMore > 0 && (
-                <Typography variant="caption" color="text.disabled" sx={{ lineHeight: '20px' }}>
-                  +{settoriMore}
-                </Typography>
-              )}
-            </Box>
-          )}
-        </CardContent>
-      </CardActionArea>
-    </Card>
+    <Chip
+      label={label}
+      onDelete={onDelete}
+      deleteIcon={<CloseIcon sx={{ fontSize: '0.75rem !important' }} />}
+      size="small"
+      sx={{
+        bgcolor: 'rgba(236,91,19,0.08)',
+        color: 'primary.main',
+        fontWeight: 600,
+        fontSize: '0.75rem',
+        '& .MuiChip-deleteIcon': { color: 'primary.main' },
+      }}
+    />
   )
 }
 
-// ── Page component ─────────────────────────────────────────────
+// ── Page ───────────────────────────────────────────────────────
 
 export default function DomainsPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const [search, setSearch] = useState('')
-  const [activeTab, setActiveTab] = useState(0)
+  const [page, setPage] = useState(1)
+  const [activeFilters, setActiveFilters] = useState<string[]>([])
 
-  const {
-    data,
-    isLoading,
-    isError,
-    refetch,
-  } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['domains'],
     queryFn: () => getDomains(session?.accessToken ?? '', 1, 100),
     enabled: !!session?.accessToken,
@@ -141,255 +120,355 @@ export default function DomainsPage() {
 
   const domains: Domain[] = data?.data ?? []
 
-  const domainMap = useMemo(
-    () => Object.fromEntries(domains.map((d) => [d.clientKey, d])),
-    [domains],
-  )
+  const totalDomains = domains.length
 
-  // Fetch runs per domain — activated only when the "Analisi precedenti" tab is open
+  // Fetch runs per domain for "Active Runs" count and "Last Analysis" date
   const runQueries = useQueries({
     queries: domains.map((d) => ({
-      queryKey: ['runs', d.clientKey],
-      queryFn: () => getRuns(session?.accessToken ?? '', d.clientKey, { limit: 50 }),
-      enabled: !!session?.accessToken && activeTab === 1,
+      queryKey: ['runs-count', d.clientKey],
+      queryFn: () => getRuns(session?.accessToken ?? '', d.clientKey, { limit: 5 }),
+      enabled: !!session?.accessToken && !isLoading,
     })),
   })
 
-  const allRuns: (RunListItem & { brand: string })[] = useMemo(() => {
-    return runQueries
-      .flatMap((q) =>
-        (q.data?.data ?? []).map((r) => ({
-          ...r,
-          brand: domainMap[r.clientKey]?.brand ?? r.clientKey,
-        })),
-      )
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  }, [runQueries, domainMap])
+  const runCountMap = useMemo(() => {
+    const map: Record<string, number> = {}
+    domains.forEach((d, i) => {
+      map[d.clientKey] = runQueries[i]?.data?.meta?.total ?? runQueries[i]?.data?.data?.length ?? 0
+    })
+    return map
+  }, [domains, runQueries])
 
-  const runsLoading = runQueries.some((q) => q.isLoading && q.fetchStatus !== 'idle')
+  const lastRunMap = useMemo(() => {
+    const map: Record<string, string | null> = {}
+    domains.forEach((d, i) => {
+      const runs = runQueries[i]?.data?.data ?? []
+      map[d.clientKey] = runs[0]?.createdAt ?? null
+    })
+    return map
+  }, [domains, runQueries])
 
-  // Client-side filter by brand / clientKey / targetDomain
-  const filtered = domains.filter((d) => {
-    if (!search) return true
+  const totalActiveRuns = useMemo(
+    () => Object.values(runCountMap).reduce((s, n) => s + n, 0),
+    [runCountMap],
+  )
+
+  // Client-side filter
+  const filtered = useMemo(() => {
+    if (!search) return domains
     const q = search.toLowerCase()
-    return (
-      d.brand.toLowerCase().includes(q) ||
-      d.clientKey.toLowerCase().includes(q) ||
-      d.targetDomain.toLowerCase().includes(q)
+    return domains.filter(
+      (d) =>
+        d.brand.toLowerCase().includes(q) ||
+        d.clientKey.toLowerCase().includes(q) ||
+        d.targetDomain.toLowerCase().includes(q),
     )
-  })
+  }, [domains, search])
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const handleSearch = (v: string) => {
+    setSearch(v)
+    setPage(1)
+  }
 
   return (
     <Box>
       {/* Page header */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          mb: 2,
-          flexWrap: 'wrap',
-          gap: 2,
-        }}
-      >
-        <Typography variant="h1">Domini</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3 }}>
+        <Box>
+          <Typography variant="h1" sx={{ fontWeight: 800, mb: 0.5 }}>
+            Projects &amp; Domains
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Gestisci i domini monitorati e le attività del workspace.
+          </Typography>
+        </Box>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => router.push('/domains/new')}
+          sx={{ flexShrink: 0 }}
         >
-          Nuovo dominio
+          Create New Project
         </Button>
       </Box>
 
-      {/* Tabs */}
-      <Tabs
-        value={activeTab}
-        onChange={(_, v: number) => setActiveTab(v)}
-        sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
-      >
-        <Tab label="Domini" />
-        <Tab label="Analisi precedenti" />
-      </Tabs>
+      {/* Search + filter bar */}
+      <Card sx={{ mb: 2, p: 2 }}>
+        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+          <TextField
+            placeholder="Search domains (e.g. turismotorino.org)..."
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
+            size="small"
+            sx={{ flex: 1, minWidth: 260 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" color="action" />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<FilterListIcon />}
+            sx={{ color: 'text.secondary', borderColor: 'divider', fontWeight: 500 }}
+          >
+            Client Key
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            sx={{ color: 'text.secondary', borderColor: 'divider', fontWeight: 500 }}
+          >
+            Status: Active
+          </Button>
+        </Box>
 
-      {/* ── Tab 0: Domini ── */}
-      {activeTab === 0 && (
-        <>
-          {!isLoading && domains.length > 0 && (
-            <TextField
-              placeholder="Cerca per brand, clientKey o dominio…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+        {/* Active filter chips */}
+        {activeFilters.length > 0 && (
+          <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+            {activeFilters.map((f) => (
+              <FilterChip
+                key={f}
+                label={f}
+                onDelete={() => setActiveFilters((prev) => prev.filter((x) => x !== f))}
+              />
+            ))}
+            <Button
+              variant="text"
               size="small"
-              sx={{ mb: 3, maxWidth: 400 }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" color="action" />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          )}
-
-          {isError && (
-            <Alert
-              severity="error"
-              action={
-                <Button color="inherit" size="small" onClick={() => void refetch()}>
-                  Ricarica
-                </Button>
-              }
-              sx={{ mb: 3 }}
+              sx={{ color: 'primary.main', fontWeight: 600, fontSize: '0.75rem', p: 0, minWidth: 0 }}
+              onClick={() => setActiveFilters([])}
             >
-              Impossibile caricare i domini. Riprova.
-            </Alert>
-          )}
+              Clear all filters
+            </Button>
+          </Box>
+        )}
+      </Card>
 
-          {isLoading && (
-            <Grid container spacing={3}>
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Grid key={i} item xs={12} sm={6} md={4}>
-                  <DomainCardSkeleton />
-                </Grid>
-              ))}
-            </Grid>
-          )}
-
-          {!isLoading && !isError && domains.length === 0 && (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: 320,
-                gap: 2,
-              }}
-            >
-              <Typography variant="h3" color="text.secondary">
-                Nessun dominio ancora
-              </Typography>
-              <Typography variant="body2" color="text.disabled">
-                Crea il tuo primo cliente per iniziare.
-              </Typography>
-              <Button
-                variant="contained"
-                size="large"
-                startIcon={<AddIcon />}
-                onClick={() => router.push('/domains/new')}
-              >
-                Crea dominio
-              </Button>
-            </Box>
-          )}
-
-          {!isLoading && !isError && domains.length > 0 && filtered.length === 0 && (
-            <Box sx={{ textAlign: 'center', py: 6 }}>
-              <Typography variant="body1" color="text.secondary">
-                Nessun dominio corrisponde alla ricerca &quot;{search}&quot;.
-              </Typography>
-              <Button variant="text" onClick={() => setSearch('')} sx={{ mt: 1 }}>
-                Rimuovi filtro
-              </Button>
-            </Box>
-          )}
-
-          {!isLoading && filtered.length > 0 && (
-            <Grid container spacing={3}>
-              {filtered.map((domain) => (
-                <Grid key={domain.clientKey} item xs={12} sm={6} md={4}>
-                  <DomainCard
-                    domain={domain}
-                    onClick={() => router.push(`/domains/${domain.clientKey}`)}
-                  />
-                </Grid>
-              ))}
-            </Grid>
-          )}
-        </>
+      {/* Error */}
+      {isError && (
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={() => void refetch()}>
+              Ricarica
+            </Button>
+          }
+          sx={{ mb: 2 }}
+        >
+          Impossibile caricare i domini.
+        </Alert>
       )}
 
-      {/* ── Tab 1: Analisi precedenti ── */}
-      {activeTab === 1 && (
-        <>
-          {runsLoading && (
-            <Box sx={{ py: 4 }}>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} variant="rectangular" height={48} sx={{ mb: 1, borderRadius: 1 }} />
-              ))}
-            </Box>
-          )}
-
-          {!runsLoading && allRuns.length === 0 && (
-            <Box sx={{ textAlign: 'center', py: 8 }}>
-              <Typography variant="h3" color="text.secondary">
-                Nessuna analisi ancora
-              </Typography>
-              <Typography variant="body2" color="text.disabled" sx={{ mt: 1 }}>
-                Le analisi avviate sui tuoi domini appariranno qui.
-              </Typography>
-            </Box>
-          )}
-
-          {!runsLoading && allRuns.length > 0 && (
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ '& th': { bgcolor: 'background.default', fontWeight: 600 } }}>
-                    <TableCell>Brand</TableCell>
-                    <TableCell>clientKey</TableCell>
-                    <TableCell>Stato</TableCell>
-                    <TableCell>Profilo</TableCell>
-                    <TableCell>Data</TableCell>
+      {/* Domain table */}
+      <Card sx={{ mb: 4, overflow: 'hidden' }}>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Target Domain</TableCell>
+                <TableCell>Client Key</TableCell>
+                <TableCell align="center">Active Runs</TableCell>
+                <TableCell>Last Analysis</TableCell>
+                <TableCell>Visibility Score</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {isLoading &&
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    {Array.from({ length: 6 }).map((_, j) => (
+                      <TableCell key={j}>
+                        <Skeleton variant="text" width={j === 0 ? 160 : j === 4 ? 120 : 80} />
+                      </TableCell>
+                    ))}
                   </TableRow>
-                </TableHead>
-                <TableBody>
-                  {allRuns.map((run) => (
+                ))}
+
+              {!isLoading && paginated.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                    <Typography color="text.secondary">
+                      {search ? `Nessun risultato per "${search}"` : 'Nessun dominio trovato.'}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+
+              {!isLoading &&
+                paginated.map((domain) => {
+                  const lastRun = lastRunMap[domain.clientKey]
+                  const score: number | null = null
+                  const activeRuns = runCountMap[domain.clientKey] ?? 0
+
+                  return (
                     <TableRow
-                      key={run.runId}
+                      key={domain.clientKey}
                       hover
                       sx={{ cursor: 'pointer' }}
-                      onClick={() => router.push(`/domains/${run.clientKey}/runs/${run.runId}`)}
+                      onClick={() => router.push(`/domains/${domain.clientKey}`)}
                     >
+                      {/* Target domain */}
                       <TableCell>
-                        <Typography variant="body2" fontWeight={500}>
-                          {run.brand}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Box
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: '50%',
+                              bgcolor: '#f1f5f9',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <LanguageIcon sx={{ fontSize: '1rem', color: 'text.disabled' }} />
+                          </Box>
+                          <Typography variant="body2" fontWeight={600}>
+                            {domain.targetDomain || domain.brand}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+
+                      {/* Client key */}
+                      <TableCell>
+                        <Chip
+                          label={domain.clientKey}
+                          size="small"
+                          sx={{
+                            bgcolor: '#f1f5f9',
+                            color: 'text.secondary',
+                            fontWeight: 500,
+                            fontSize: '0.75rem',
+                            borderRadius: 'var(--geo-radius-sm)',
+                          }}
+                        />
+                      </TableCell>
+
+                      {/* Active runs */}
+                      <TableCell align="center">
+                        <Typography variant="body2" fontWeight={600}>
+                          {activeRuns}
                         </Typography>
                       </TableCell>
+
+                      {/* Last analysis */}
                       <TableCell>
-                        <Typography
-                          variant="caption"
-                          sx={{ fontFamily: 'var(--geo-font-mono)', color: 'text.disabled' }}
+                        {lastRun ? (
+                          <Box>
+                            <Typography variant="body2" fontWeight={500}>
+                              {new Date(lastRun).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </Typography>
+                            <Typography variant="caption" color="text.disabled">
+                              {new Date(lastRun).toLocaleTimeString('en-US', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Typography variant="caption" color="text.disabled">—</Typography>
+                        )}
+                      </TableCell>
+
+                      {/* Visibility score */}
+                      <TableCell sx={{ minWidth: 160 }}>
+                        <VisibilityBar score={score} />
+                      </TableCell>
+
+                      {/* Actions */}
+                      <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => router.push(`/domains/${domain.clientKey}`)}
+                          sx={{
+                            borderColor: 'primary.main',
+                            color: 'primary.main',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            '&:hover': { bgcolor: 'rgba(236,91,19,0.06)' },
+                          }}
                         >
-                          {run.clientKey}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <StatusChip status={run.status as RunStatus} />
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {run.profileKey}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {new Date(run.createdAt).toLocaleDateString('it-IT', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                          })}
-                        </Typography>
+                          View Details
+                        </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </>
-      )}
+                  )
+                })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        {/* Pagination */}
+        {!isLoading && filtered.length > PAGE_SIZE && (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              px: 2,
+              py: 1.5,
+              borderTop: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            <Typography variant="caption" color="text.secondary">
+              Showing {(page - 1) * PAGE_SIZE + 1} to{' '}
+              {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} results
+            </Typography>
+            <Pagination
+              count={totalPages}
+              page={page}
+              onChange={(_, v) => setPage(v)}
+              size="small"
+              sx={{
+                '& .MuiPaginationItem-root.Mui-selected': {
+                  bgcolor: 'primary.main',
+                  color: 'white',
+                },
+              }}
+            />
+          </Box>
+        )}
+      </Card>
+
+      {/* Bottom KPI summary cards */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2 }}>
+        <StatCard
+          label="Total Domains"
+          value={isLoading ? '—' : String(totalDomains)}
+          icon={<PublicIcon sx={{ fontSize: '1.5rem' }} />}
+        />
+        <StatCard
+          label="Active Runs"
+          value={isLoading ? '—' : String(totalActiveRuns)}
+          icon={<RocketLaunchIcon sx={{ fontSize: '1.5rem' }} />}
+        />
+        <StatCard
+          label="Avg. Visibility"
+          value="—"
+          icon={<VisibilityIcon sx={{ fontSize: '1.5rem' }} />}
+        />
+        <StatCard
+          label="New Clients (MoM)"
+          value="+12%"
+          delta={{ label: '+12%', positive: true }}
+          icon={<TrendingUpIcon sx={{ fontSize: '1.5rem' }} />}
+        />
+      </Box>
     </Box>
   )
 }

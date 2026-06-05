@@ -186,7 +186,7 @@ export interface TargetBrandRow {
 }
 
 export interface RankingResult {
-  targetBrandRow: TargetBrandRow
+  targetBrandRow: TargetBrandRow | null
   competitors: BrandRankRow[]
 }
 

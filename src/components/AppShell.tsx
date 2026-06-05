@@ -31,15 +31,20 @@ import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone'
 interface NavLink {
   label: string
   path: string
-  adminOnly?: boolean
+  // exact: true → active only on exact path match; false → active on startsWith
+  exact?: boolean
 }
 
-const NAV_LINKS: NavLink[] = [
-  { label: 'Panoramica', path: '/domains' },
-  { label: 'Utenti', path: '/admin/users', adminOnly: true },
-  { label: 'Run globali', path: '/admin/runs', adminOnly: true },
-  { label: 'Profili LLM', path: '/admin/profiles', adminOnly: true },
-  { label: 'Impostazioni', path: '/admin/domains', adminOnly: true },
+// Links visibili a tutti gli utenti autenticati
+const USER_NAV_LINKS: NavLink[] = [
+  { label: 'Progetti', path: '/domains', exact: false },
+]
+
+// Links visibili solo agli admin
+const ADMIN_NAV_LINKS: NavLink[] = [
+  { label: 'Run globali', path: '/admin/runs', exact: false },
+  { label: 'Utenti',      path: '/admin/users', exact: true },
+  { label: 'Profili LLM', path: '/admin/profiles', exact: false },
 ]
 
 interface AppShellProps {
@@ -55,9 +60,13 @@ export default function AppShell({ children }: AppShellProps) {
   const isAdmin = session?.user?.role === 'admin'
   const userInitial = session?.user?.email?.[0]?.toUpperCase() ?? 'U'
 
-  const visibleLinks = NAV_LINKS.filter((l) => !l.adminOnly || isAdmin)
+  const visibleLinks = [
+    ...USER_NAV_LINKS,
+    ...(isAdmin ? ADMIN_NAV_LINKS : []),
+  ]
 
-  const isActive = (path: string) => pathname.startsWith(path)
+  const isActive = (link: NavLink) =>
+    link.exact ? pathname === link.path : pathname === link.path || pathname.startsWith(link.path + '/')
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -81,32 +90,34 @@ export default function AppShell({ children }: AppShellProps) {
             gap: 4,
           }}
         >
-          {/* Logo */}
+          {/* Logo — 2×2 grid icon matching mockups */}
           <Box
             sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', flexShrink: 0 }}
             onClick={() => router.push('/domains')}
           >
             <Box
               sx={{
-                width: 28,
-                height: 28,
+                width: 32,
+                height: 32,
                 bgcolor: 'primary.main',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                borderRadius: '8px',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '3px',
+                p: '6px',
               }}
             >
-              <Typography sx={{ color: 'white', fontWeight: 800, fontSize: '0.9375rem', lineHeight: 1 }}>
-                G
-              </Typography>
+              {[0, 1, 2, 3].map((i) => (
+                <Box key={i} sx={{ bgcolor: 'white', borderRadius: '2px' }} />
+              ))}
             </Box>
             <Typography
               variant="h3"
               sx={{
                 fontWeight: 800,
-                color: 'primary.main',
+                color: 'text.primary',
                 letterSpacing: '-0.02em',
+                fontSize: '1rem',
               }}
             >
               GEO Analytics
@@ -116,10 +127,10 @@ export default function AppShell({ children }: AppShellProps) {
           {/* Nav links */}
           <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 0.5 }}>
             {visibleLinks.map((link) => {
-              const active = isActive(link.path)
+              const active = isActive(link)
               return (
                 <Button
-                  key={link.path}
+                  key={link.label}
                   onClick={() => router.push(link.path)}
                   disableRipple={false}
                   sx={{
@@ -140,7 +151,7 @@ export default function AppShell({ children }: AppShellProps) {
                   }}
                 >
                   {link.label}
-                  {link.adminOnly && (
+                  {isAdmin && ADMIN_NAV_LINKS.some(a => a.label === link.label) && (
                     <Chip
                       label="Admin"
                       size="small"

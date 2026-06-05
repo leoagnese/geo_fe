@@ -1,11 +1,9 @@
 /**
- * Results shared layout — MUI Tabs sub-navigation for SC-030/031/032/033.
+ * Results shared layout — header run + MUI Tabs sub-nav (SC-030–033).
  *
- * Tabs: Riepilogo (/overview), Query Metrics (/keywords),
- *       Brand Analysis (/ranking), Report LLM (/personas).
- * Sticky below the page top nav per layouts.md §"Tab / sub-nav pattern".
+ * Header: run title, COMPLETED badge, ID + date, Export PDF + Re-run buttons.
+ * Tabs: Summary | Query Metrics | Brand Analysis | LLM Report.
  *
- * @spec L1_design/patterns/layouts.md §"Tab / sub-nav pattern"
  * @spec L1_design/screen-inventory.md §"SC-030–SC-033"
  */
 'use client'
@@ -18,13 +16,23 @@ import Tabs from '@mui/material/Tabs'
 import Tab from '@mui/material/Tab'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
-import TuneIcon from '@mui/icons-material/Tune'
+import Chip from '@mui/material/Chip'
+import Skeleton from '@mui/material/Skeleton'
 import FileDownloadIcon from '@mui/icons-material/FileDownload'
-import { getDomain } from '@/lib/api-client'
+import ReplayIcon from '@mui/icons-material/Replay'
+import { getDomain, getRun } from '@/lib/api-client'
 
 interface ResultsLayoutProps {
   children: React.ReactNode
   params: { clientKey: string; runId: string }
+}
+
+const STATUS_LABEL: Record<string, { label: string; color: string; bgcolor: string }> = {
+  done:      { label: 'COMPLETED', color: '#16a34a', bgcolor: '#f0fdf4' },
+  running:   { label: 'RUNNING',   color: '#2563eb', bgcolor: '#eff6ff' },
+  queued:    { label: 'QUEUED',    color: '#d97706', bgcolor: '#fffbeb' },
+  error:     { label: 'ERROR',     color: '#dc2626', bgcolor: '#fef2f2' },
+  cancelled: { label: 'CANCELLED', color: '#475569', bgcolor: '#f1f5f9' },
 }
 
 export default function ResultsLayout({ children, params }: ResultsLayoutProps) {
@@ -39,62 +47,128 @@ export default function ResultsLayout({ children, params }: ResultsLayoutProps) 
     enabled: !!session?.accessToken,
   })
 
+  const { data: runData, isLoading: runLoading } = useQuery({
+    queryKey: ['run', clientKey, runId],
+    queryFn: () => getRun(session?.accessToken ?? '', clientKey, runId),
+    enabled: !!session?.accessToken,
+  })
+
+  const domain = domainData?.data
+  const run = runData?.data
+
   const base = `/domains/${clientKey}/runs/${runId}/results`
-
   const tabs = [
-    { label: 'Riepilogo', path: `${base}/overview` },
-    { label: 'Query Metrics', path: `${base}/keywords` },
-    { label: 'Brand Analysis', path: `${base}/ranking` },
-    { label: 'Report LLM', path: `${base}/personas` },
+    { label: 'Summary',         path: `${base}/overview` },
+    { label: 'Query Metrics',   path: `${base}/keywords` },
+    { label: 'Brand Analysis',  path: `${base}/ranking` },
+    { label: 'LLM Report',      path: `${base}/personas` },
   ]
+  const currentTab = Math.max(0, tabs.findIndex((t) => pathname.startsWith(t.path)))
 
-  const currentTab = tabs.findIndex((t) => pathname.startsWith(t.path))
+  const statusCfg = STATUS_LABEL[run?.status ?? ''] ?? STATUS_LABEL.done
+  const executedDate = run?.completedAt ?? run?.startedAt ?? run?.createdAt
+  const shortRunId = runId.length > 12 ? runId.slice(0, 12) + '…' : runId
+
+  const runTitle = domain?.brand
+    ? `${domain.brand} — ${run?.profileKey ?? ''} Run`
+    : runLoading
+    ? ''
+    : `Run ${shortRunId}`
 
   return (
     <Box>
       {/* Breadcrumb */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 2 }}>
         <Typography
           variant="caption"
           color="text.secondary"
           sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
           onClick={() => router.push('/domains')}
         >
-          Campagne
+          Runs
         </Typography>
         <Typography variant="caption" color="text.disabled">›</Typography>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-          onClick={() => router.push(`/domains/${clientKey}`)}
-        >
-          {domainData?.data?.brand ?? clientKey}
+        <Typography variant="caption" color="primary.main" fontWeight={600}>
+          {shortRunId} Analysis
         </Typography>
-        <Typography variant="caption" color="text.disabled">›</Typography>
-        <Typography variant="caption" color="text.secondary">Brand Analysis</Typography>
       </Box>
 
       {/* Page header */}
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          mb: 3,
+          flexWrap: 'wrap',
+          gap: 2,
+        }}
+      >
         <Box>
-          <Typography variant="h1">Brand Analysis & Competitor Comparison</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            {domainData?.data?.brand ?? clientKey} · {runId.split('T')[0]}
-          </Typography>
+          {runLoading ? (
+            <>
+              <Skeleton variant="text" width={320} height={44} />
+              <Skeleton variant="text" width={240} height={20} sx={{ mt: 0.5 }} />
+            </>
+          ) : (
+            <>
+              {/* Status badge + title */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+                <Chip
+                  label={statusCfg.label}
+                  size="small"
+                  sx={{
+                    bgcolor: statusCfg.bgcolor,
+                    color: statusCfg.color,
+                    fontWeight: 700,
+                    fontSize: '0.6875rem',
+                    height: 22,
+                    borderRadius: 'var(--geo-radius-sm)',
+                    '& .MuiChip-label': { px: 1 },
+                  }}
+                />
+              </Box>
+              <Typography variant="h1" sx={{ fontWeight: 800, mb: 0.5 }}>
+                {runTitle}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                ID:{' '}
+                <Box component="span" sx={{ fontFamily: 'var(--geo-font-mono)', fontWeight: 600, color: 'primary.main' }}>
+                  {runId}
+                </Box>
+                {executedDate && (
+                  <>
+                    {' · '}Executed:{' '}
+                    {new Date(executedDate).toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </>
+                )}
+              </Typography>
+            </>
+          )}
         </Box>
+
+        {/* CTAs */}
         <Box sx={{ display: 'flex', gap: 1.5, flexShrink: 0 }}>
-          <Button variant="outlined" size="small" startIcon={<TuneIcon />} sx={{ borderRadius: '20px' }}>
-            Filtri
+          <Button
+            variant="outlined"
+            startIcon={<FileDownloadIcon />}
+            onClick={() => router.push(`${base}/personas`)}
+            sx={{ fontWeight: 600 }}
+          >
+            Export PDF
           </Button>
           <Button
             variant="contained"
-            size="small"
-            startIcon={<FileDownloadIcon />}
-            onClick={() => router.push(`/domains/${clientKey}/runs/${runId}/results/personas`)}
-            sx={{ borderRadius: '20px' }}
+            startIcon={<ReplayIcon />}
+            onClick={() => router.push(`/domains/${clientKey}/runs/new`)}
           >
-            Esporta Report
+            Re-run Analysis
           </Button>
         </Box>
       </Box>
@@ -103,14 +177,13 @@ export default function ResultsLayout({ children, params }: ResultsLayoutProps) 
       <Box
         sx={{
           position: 'sticky',
-          top: 64,
+          top: 56,
           zIndex: 10,
           bgcolor: 'background.default',
-          pb: 0,
         }}
       >
         <Tabs
-          value={currentTab === -1 ? 0 : currentTab}
+          value={currentTab}
           onChange={(_e, idx: number) => router.push(tabs[idx].path)}
           sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
         >

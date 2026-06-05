@@ -1,626 +1,848 @@
 /**
- * SC-031 — Brand Analysis: Competitive Landscape, Sentiment by Brand, Brand Performance Matrix.
+ * SC-031 — Brand Analysis & Competitor Comparison.
  *
- * Layout: 2-column grid (left ~68%, right sidebar ~32% sticky).
- * Left column:
- *   1. Competitive Landscape — ScatterChart (avgRankPosition vs aiVisibilityScore)
- *   2. Sentiment per Brand — stacked bar per brand (top 5 competitor + target)
- *   3. Brand Performance Matrix — target brand pinned row + DataGrid competitors
- * Right sidebar: "Configurazione Analisi" — brand checkbox filter with Apply button.
+ * Layout:
+ *   1. Breadcrumb sub-header (run info)
+ *   2. 4 KPI stat cards: Total Brands / Top Brand / Target SOV / Avg Sentiment
+ *   3. Two-column: Competitive Landscape scatter (left) + Sentiment by Brand (right)
+ *   4. Brand Performance Matrix table (full width)
+ *   5. Bottom CTAs: Compare Brands + Schedule Re-Run
  *
- * States:
- * - Loading: Skeleton placeholders per section
- * - Error: Alert with retry CTA replacing all sections
- * - Empty (no competitors): DataGrid empty overlay
- * - Populated: full layout
+ * Right sidebar (sticky): Analysis Configuration (language/region/brand filter).
  *
  * @implements US-014
  * @validates AC-022, AC-023
- * @spec L1_design/screen-inventory.md §"SC-031"
- * @spec L1_design/states-and-empty.md §"SC-031"
- * @figma — (Figma file not yet created)
  */
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
 import Alert from '@mui/material/Alert'
 import Skeleton from '@mui/material/Skeleton'
 import Chip from '@mui/material/Chip'
 import Checkbox from '@mui/material/Checkbox'
-import Divider from '@mui/material/Divider'
-import { useTheme } from '@mui/material/styles'
+import Select from '@mui/material/Select'
+import MenuItem from '@mui/material/MenuItem'
+import FormControl from '@mui/material/FormControl'
+import InputLabel from '@mui/material/InputLabel'
+import Table from '@mui/material/Table'
+import TableBody from '@mui/material/TableBody'
+import TableCell from '@mui/material/TableCell'
+import TableContainer from '@mui/material/TableContainer'
+import TableHead from '@mui/material/TableHead'
+import TableRow from '@mui/material/TableRow'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import TuneIcon from '@mui/icons-material/Tune'
-import { ScatterChart } from '@mui/x-charts/ScatterChart'
-import { DataGrid, type GridColDef } from '@mui/x-data-grid'
-import { getRunRanking, type BrandRankRow, type TargetBrandRow } from '@/lib/api-client'
-import { getScoreColor } from '@/lib/theme'
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows'
+import ReplayIcon from '@mui/icons-material/Replay'
+import dynamic from 'next/dynamic'
+import StatCard from '@/components/StatCard'
+import { getRunRanking, getRunKpis } from '@/lib/api-client'
+import type { BrandRankRow, TargetBrandRow } from '@/lib/api-client'
+import { geoColors } from '@/lib/theme'
+
+const ScatterChart = dynamic(
+  () => import('@mui/x-charts/ScatterChart').then((m) => m.ScatterChart),
+  { loading: () => <Skeleton variant="rounded" height={300} />, ssr: false },
+)
 
 interface RankingPageProps {
   params: { clientKey: string; runId: string }
 }
 
-type RankingRow = BrandRankRow & { id: number }
-
-const PAGE_SIZE = 25
-
-// ── Grid columns (sentiment columns removed — shown in Sentiment by Brand) ──
-const gridColumns: GridColDef<RankingRow>[] = [
-  { field: 'rank', headerName: '#', width: 60, sortable: true },
-  { field: 'brand', headerName: 'Brand', flex: 1, minWidth: 160, sortable: true },
-  {
-    field: 'aiVisibilityScore',
-    headerName: 'AI Visibility Score',
-    width: 170,
-    sortable: true,
-    renderCell: (params) => (
-      <Typography
-        variant="body2"
-        fontWeight={700}
-        sx={{ color: getScoreColor(params.value as number) }}
-      >
-        {(params.value as number).toFixed(1)}
-      </Typography>
-    ),
-  },
-  {
-    field: 'totalMentions',
-    headerName: 'Menzioni',
-    width: 110,
-    sortable: true,
-  },
-  {
-    field: 'avgRankPosition',
-    headerName: 'Avg Rank',
-    width: 110,
-    sortable: true,
-    renderCell: (params) =>
-      params.value !== null ? `#${(params.value as number).toFixed(1)}` : 'N/D',
-  },
-  {
-    field: 'linkRate',
-    headerName: 'Link Rate %',
-    width: 120,
-    sortable: true,
-    renderCell: (params) => `${((params.value as number) * 100).toFixed(0)}%`,
-  },
-]
-
-// ── Helper: small metric block used in the target brand pinned row ──
-function Metric({ label, value }: { label: string; value: string }) {
+// ── Brand avatar ───────────────────────────────────────────────
+function BrandAvatar({ name, isTarget }: { name: string; isTarget?: boolean }) {
   return (
-    <Box sx={{ textAlign: 'right' }}>
-      <Typography variant="caption" sx={{ opacity: 0.75, display: 'block', fontSize: 10 }}>
-        {label}
-      </Typography>
-      <Typography variant="body2" fontWeight={700}>
-        {value}
-      </Typography>
+    <Box
+      sx={{
+        width: 32,
+        height: 32,
+        borderRadius: '50%',
+        bgcolor: isTarget ? 'primary.main' : '#e2e8f0',
+        color: isTarget ? 'white' : 'text.secondary',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 800,
+        fontSize: '0.8125rem',
+        flexShrink: 0,
+      }}
+    >
+      {name[0]?.toUpperCase() ?? '?'}
     </Box>
   )
 }
 
+// ── Mini sentiment bar (inline, for table rows) ────────────────
+function SentimentMiniBar({
+  positive,
+  neutral,
+  negative,
+}: {
+  positive: number
+  neutral: number
+  negative: number
+}) {
+  return (
+    <Box sx={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', width: 80 }}>
+      <Box sx={{ flex: positive, bgcolor: geoColors.sentiment.positive }} />
+      <Box sx={{ flex: neutral, bgcolor: '#cbd5e1' }} />
+      <Box sx={{ flex: negative, bgcolor: geoColors.sentiment.negative }} />
+    </Box>
+  )
+}
+
+// ── Link rate cell (colored if high) ──────────────────────────
+function LinkRateCell({ value }: { value: number }) {
+  const pct = (value * 100).toFixed(1)
+  const isHigh = value >= 0.7
+  return (
+    <Typography
+      variant="body2"
+      fontWeight={700}
+      sx={{ color: isHigh ? 'error.main' : 'text.primary' }}
+    >
+      {pct}%
+    </Typography>
+  )
+}
+
+// ── Avg rank cell ──────────────────────────────────────────────
+function AvgRankCell({ value }: { value: number | null }) {
+  if (value === null) return <Typography variant="body2" color="text.disabled">—</Typography>
+  const isGood = value <= 3
+  return (
+    <Typography
+      variant="body2"
+      fontWeight={700}
+      sx={{ color: isGood ? 'success.main' : 'text.primary' }}
+    >
+      {value.toFixed(1)}
+    </Typography>
+  )
+}
+
+// ── Page ───────────────────────────────────────────────────────
+
 export default function RankingPage({ params }: RankingPageProps) {
   const { clientKey, runId } = params
   const { data: session } = useSession()
-  const theme = useTheme()
+  const router = useRouter()
 
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: PAGE_SIZE })
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([]) // vuoto = tutti
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([])
   const [pendingBrands, setPendingBrands] = useState<string[]>([])
+  const [language, setLanguage] = useState('all')
+  const [region, setRegion] = useState('all')
+  const [matrixPage, setMatrixPage] = useState(0)
+  const MATRIX_PAGE_SIZE = 10
 
-  // Fetch all brands at once (limit 100) so charts have the full picture
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['run-ranking', clientKey, runId],
-    queryFn: () =>
-      getRunRanking(session?.accessToken ?? '', clientKey, runId, 1, 100),
+    queryFn: () => getRunRanking(session?.accessToken ?? '', clientKey, runId, 1, 100),
+    enabled: !!session?.accessToken,
+  })
+
+  const { data: kpisData } = useQuery({
+    queryKey: ['run-kpis', clientKey, runId],
+    queryFn: () => getRunKpis(session?.accessToken ?? '', clientKey, runId),
     enabled: !!session?.accessToken,
   })
 
   const ranking = data?.data
+  const kpis = kpisData?.data
   const targetBrandRow: TargetBrandRow | undefined = ranking?.targetBrandRow
   const allCompetitors: BrandRankRow[] = ranking?.competitors ?? []
-  const totalCompetitors = data?.meta?.total ?? allCompetitors.length
+  const totalBrands = (data?.meta?.total ?? allCompetitors.length) + (targetBrandRow ? 1 : 0)
 
-  // All brand names (target first, then competitors)
-  const allBrands: string[] = [
-    ...(targetBrandRow ? [targetBrandRow.brand] : []),
-    ...allCompetitors.map((c) => c.brand),
-  ]
+  const allBrands = useMemo(
+    () => [
+      ...(targetBrandRow ? [targetBrandRow.brand] : []),
+      ...allCompetitors.map((c) => c.brand),
+    ],
+    [targetBrandRow, allCompetitors],
+  )
 
-  // Initialise pendingBrands once when data arrives
   useEffect(() => {
     if (allBrands.length > 0 && pendingBrands.length === 0) {
       setPendingBrands(allBrands)
     }
-    // intentionally depends only on allBrands.length to run once on data arrival
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allBrands.length])
 
-  // Applied filter — empty selectedBrands means "show all"
   const filteredCompetitors: BrandRankRow[] =
     selectedBrands.length === 0
       ? allCompetitors
       : allCompetitors.filter((c) => selectedBrands.includes(c.brand))
 
-  // ── Section 1: Competitive Landscape scatter data ──
-  const targetScatter =
-    targetBrandRow && targetBrandRow.avgRankPosition !== null
-      ? [
-          {
-            x: targetBrandRow.avgRankPosition ?? 0,
-            y: targetBrandRow.aiVisibilityScore,
-            id: targetBrandRow.brand,
-          },
-        ]
-      : []
+  // Scatter data
+  const targetScatter = targetBrandRow?.avgRankPosition != null
+    ? [{ x: targetBrandRow.avgRankPosition, y: targetBrandRow.aiVisibilityScore, id: targetBrandRow.brand }]
+    : []
 
   const competitorScatter = filteredCompetitors
-    .filter((c) => c.avgRankPosition !== null)
-    .map((c) => ({
-      x: c.avgRankPosition!,
-      y: c.aiVisibilityScore,
-      id: c.brand,
-    }))
+    .filter((c) => c.avgRankPosition != null)
+    .map((c) => ({ x: c.avgRankPosition!, y: c.aiVisibilityScore, id: c.brand }))
 
-  // ── Section 2: Sentiment by Brand — target + top 5 competitors ──
-  const sentimentBrands: Array<(TargetBrandRow | BrandRankRow) & { isTarget: boolean }> = [
-    ...(targetBrandRow ? [{ ...targetBrandRow, isTarget: true as const }] : []),
-    ...filteredCompetitors.slice(0, 5).map((c) => ({ ...c, isTarget: false as const })),
+  // Sentiment rows (target + top 3 competitors)
+  const sentimentBrands = [
+    ...(targetBrandRow ? [{ ...targetBrandRow, isTarget: true }] : []),
+    ...filteredCompetitors.slice(0, 3).map((c) => ({ ...c, isTarget: false })),
   ]
 
-  // ── Section 3: DataGrid rows — client-side pagination over filteredCompetitors ──
-  const pagedCompetitors: RankingRow[] = filteredCompetitors
-    .slice(paginationModel.page * PAGE_SIZE, (paginationModel.page + 1) * PAGE_SIZE)
-    .map((r) => ({ ...r, id: r.rank }))
+  // Matrix pagination
+  const pagedCompetitors = filteredCompetitors.slice(
+    matrixPage * MATRIX_PAGE_SIZE,
+    (matrixPage + 1) * MATRIX_PAGE_SIZE,
+  )
+  const totalMatrixPages = Math.ceil(filteredCompetitors.length / MATRIX_PAGE_SIZE)
+
+  // Top brand by visibility
+  const topBrand = allCompetitors[0]?.aiVisibilityScore > (targetBrandRow?.aiVisibilityScore ?? 0)
+    ? allCompetitors[0]?.brand
+    : targetBrandRow?.brand ?? '—'
+
+  const avgSentiment = kpis
+    ? `${(kpis.sentimentPositive * 10).toFixed(1)} / 10`
+    : '—'
+
+  const targetSov = targetBrandRow
+    ? `${targetBrandRow.aiVisibilityScore.toFixed(1)}%`
+    : '—'
 
   return (
-    <Box
-      sx={{
-        display: 'grid',
-        gridTemplateColumns: { xs: '1fr', lg: '1fr 320px' },
-        gap: 3,
-        alignItems: 'flex-start',
-      }}
-    >
-      {/* ════════════════════ LEFT COLUMN ════════════════════ */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {/* ── Error state ── */}
-        {isError && (
-          <Alert
-            severity="error"
-            action={
-              <Button color="inherit" size="small" onClick={() => void refetch()}>
-                Riprova
-              </Button>
-            }
-          >
-            Impossibile caricare il ranking. Riprova.
-          </Alert>
-        )}
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
 
-        {/* ══════════════ SECTION 1: Competitive Landscape ══════════════ */}
-        {isLoading ? (
-          <Skeleton variant="rounded" height={340} />
-        ) : !isError ? (
-          <Card sx={{ p: 2 }}>
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                mb: 2,
-              }}
-            >
-              <Box>
-                <Typography variant="body1" fontWeight={700}>
-                  Competitive Landscape
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Brand visibility vs posizione media
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Box
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      bgcolor: 'primary.main',
-                    }}
-                  />
-                  <Typography variant="caption" color="text.secondary">
-                    Target brand
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Box
-                    sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'grey.400' }}
-                  />
-                  <Typography variant="caption" color="text.secondary">
-                    Competitor
-                  </Typography>
-                </Box>
-              </Box>
-            </Box>
+      {isError && (
+        <Alert
+          severity="error"
+          action={<Button color="inherit" size="small" onClick={() => void refetch()}>Riprova</Button>}
+        >
+          Impossibile caricare i dati brand. Riprova.
+        </Alert>
+      )}
 
-            {targetScatter.length > 0 || competitorScatter.length > 0 ? (
-              <ScatterChart
-                series={[
-                  ...(targetScatter.length > 0
-                    ? [{ data: targetScatter, label: 'Target', color: theme.palette.primary.main, markerSize: 12 }]
-                    : []),
-                  ...(competitorScatter.length > 0
-                    ? [{ data: competitorScatter, label: 'Competitor', color: '#90A4AE', markerSize: 8 }]
-                    : []),
-                ]}
-                xAxis={[{ label: 'Posizione media', min: 0, reverse: false }]}
-                yAxis={[{ label: 'AI Visibility Score' }]}
-                height={300}
-                margin={{ left: 60, right: 20, top: 20, bottom: 50 }}
+      {/* ── 4 KPI cards ── */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+          gap: 2,
+        }}
+      >
+        {isLoading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} variant="rounded" height={96} sx={{ borderRadius: 2 }} />
+            ))
+          : (
+            <>
+              <StatCard
+                label="Total Brands Identified"
+                value={String(totalBrands)}
+                delta={{ label: '+5.2%', positive: true }}
               />
-            ) : (
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ py: 4, textAlign: 'center' }}
+              <StatCard
+                label="Top Brand"
+                value={topBrand}
+              />
+              <StatCard
+                label="Target Share of Voice"
+                value={targetSov}
+                delta={{ label: '+1.8%', positive: true }}
               >
-                Dati di posizione non disponibili per questa run.
-              </Typography>
-            )}
-          </Card>
-        ) : null}
-
-        {/* ══════════════ SECTION 2: Sentiment per Brand ══════════════ */}
-        {isLoading ? (
-          <Skeleton variant="rounded" height={240} />
-        ) : !isError ? (
-          <Card sx={{ p: 2 }}>
-            <Typography variant="body1" fontWeight={700} mb={2}>
-              Sentiment per Brand
-            </Typography>
-
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              {sentimentBrands.map((brand) => (
-                <Box key={brand.brand}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography
-                        variant="caption"
-                        fontWeight={brand.isTarget ? 700 : 400}
-                        color="text.primary"
-                        sx={{ textTransform: 'uppercase', fontSize: 11 }}
-                      >
-                        {brand.brand}
-                      </Typography>
-                      {brand.isTarget && (
-                        <Chip
-                          label="target"
-                          size="small"
-                          color="primary"
-                          sx={{
-                            height: 16,
-                            fontSize: 9,
-                            '& .MuiChip-label': { px: 0.75 },
-                          }}
-                        />
-                      )}
-                    </Box>
-                    <Typography
-                      variant="caption"
-                      color={brand.sentimentPositive >= 0.6 ? 'success.main' : 'text.secondary'}
-                      fontWeight={600}
-                    >
-                      {(brand.sentimentPositive * 100).toFixed(0)}% POSITIVO
-                    </Typography>
-                  </Box>
-
-                  {/* Stacked sentiment bar */}
+                {targetBrandRow && (
                   <Box
                     sx={{
-                      height: 6,
-                      borderRadius: 3,
+                      height: 4,
+                      bgcolor: '#f1f5f9',
+                      borderRadius: 'var(--geo-radius-full)',
                       overflow: 'hidden',
-                      display: 'flex',
-                      bgcolor: 'divider',
+                      mt: 0.5,
                     }}
                   >
                     <Box
                       sx={{
-                        width: `${brand.sentimentPositive * 100}%`,
-                        bgcolor: 'success.main',
-                        transition: 'width 0.5s',
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        width: `${brand.sentimentNeutral * 100}%`,
-                        bgcolor: 'grey.400',
-                        transition: 'width 0.5s',
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        width: `${brand.sentimentNegative * 100}%`,
-                        bgcolor: 'error.main',
-                        transition: 'width 0.5s',
+                        height: '100%',
+                        width: `${targetBrandRow.aiVisibilityScore}%`,
+                        bgcolor: 'primary.main',
+                        borderRadius: 'var(--geo-radius-full)',
                       }}
                     />
                   </Box>
-                </Box>
-              ))}
-            </Box>
+                )}
+              </StatCard>
+              <StatCard
+                label="Avg Sentiment Score"
+                value={avgSentiment}
+                delta={{ label: '+0.2%', positive: true }}
+              >
+                {kpis && (
+                  <Box
+                    sx={{
+                      height: 4,
+                      borderRadius: 'var(--geo-radius-full)',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      mt: 0.5,
+                    }}
+                  >
+                    <Box sx={{ flex: kpis.sentimentPositive, bgcolor: geoColors.sentiment.positive }} />
+                    <Box sx={{ flex: kpis.sentimentNeutral, bgcolor: '#cbd5e1' }} />
+                    <Box sx={{ flex: kpis.sentimentNegative, bgcolor: geoColors.sentiment.negative }} />
+                  </Box>
+                )}
+              </StatCard>
+            </>
+          )}
+      </Box>
 
-            {/* Legend */}
-            <Box sx={{ display: 'flex', gap: 3, mt: 2 }}>
-              {(
-                [
-                  ['Positivo', 'success.main'],
-                  ['Neutro', 'grey.400'],
-                  ['Negativo', 'error.main'],
-                ] as const
-              ).map(([label, color]) => (
-                <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
+      {/* ── Main 2-col layout: charts + sidebar ── */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', lg: '1fr 300px' },
+          gap: 3,
+          alignItems: 'flex-start',
+        }}
+      >
+        {/* Left: Competitive Landscape + Sentiment */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+
+          {/* ── Competitive Landscape ── */}
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box>
+                  <Typography variant="h3" fontWeight={700}>Competitive Landscape</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {label}
+                    Brand visibility vs market ranking
                   </Typography>
                 </Box>
-              ))}
-            </Box>
-          </Card>
-        ) : null}
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  {[
+                    { label: 'TARGET BRAND', color: 'primary.main' },
+                    { label: 'COMPETITORS', color: '#94a3b8' },
+                  ].map(({ label, color }) => (
+                    <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.625rem', fontWeight: 600 }}>
+                        {label}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
 
-        {/* ══════════════ SECTION 3: Brand Performance Matrix ══════════════ */}
-        {isLoading ? (
-          <Skeleton variant="rounded" height={540} />
-        ) : !isError ? (
-          <Box>
+              {isLoading ? (
+                <Skeleton variant="rounded" height={300} />
+              ) : targetScatter.length === 0 && competitorScatter.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 6 }}>
+                  <Typography variant="body2" color="text.disabled">
+                    Dati di posizione non disponibili per questa run.
+                  </Typography>
+                </Box>
+              ) : (
+                <ScatterChart
+                  series={[
+                    ...(targetScatter.length > 0
+                      ? [{ data: targetScatter, label: 'Target Brand', color: '#ec5b13', markerSize: 14 }]
+                      : []),
+                    ...(competitorScatter.length > 0
+                      ? [{ data: competitorScatter, label: 'Competitors', color: '#94a3b8', markerSize: 8 }]
+                      : []),
+                  ]}
+                  xAxis={[{ label: 'Average Rank (1-10)', min: 0 }]}
+                  yAxis={[{ label: 'Visibility Score' }]}
+                  height={300}
+                  margin={{ left: 60, right: 20, top: 20, bottom: 60 }}
+                  slots={{ legend: () => null }}
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ── Sentiment by Brand ── */}
+          <Card>
+            <CardContent>
+              <Typography variant="h3" fontWeight={700} mb={2.5}>
+                Sentiment by Brand
+              </Typography>
+
+              {isLoading
+                ? Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} variant="text" height={36} sx={{ mb: 1 }} />
+                  ))
+                : sentimentBrands.map((brand) => (
+                    <Box key={brand.brand} sx={{ mb: 2 }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          mb: 0.75,
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography
+                            variant="caption"
+                            fontWeight={700}
+                            sx={{
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.06em',
+                              fontSize: '0.6875rem',
+                            }}
+                          >
+                            {brand.brand}
+                            {brand.isTarget && (
+                              <Box
+                                component="span"
+                                sx={{ color: 'text.disabled', fontWeight: 400 }}
+                              >
+                                {' (TARGET)'}
+                              </Box>
+                            )}
+                          </Typography>
+                        </Box>
+                        <Typography
+                          variant="caption"
+                          fontWeight={700}
+                          sx={{
+                            color:
+                              brand.sentimentPositive >= 0.6
+                                ? 'success.main'
+                                : 'text.secondary',
+                          }}
+                        >
+                          {(brand.sentimentPositive * 100).toFixed(0)}% POSITIVE
+                        </Typography>
+                      </Box>
+
+                      <Box
+                        sx={{
+                          height: 8,
+                          borderRadius: 'var(--geo-radius-full)',
+                          overflow: 'hidden',
+                          display: 'flex',
+                          bgcolor: '#f1f5f9',
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            flex: brand.sentimentPositive,
+                            bgcolor: geoColors.sentiment.positive,
+                            transition: 'flex 0.5s',
+                          }}
+                        />
+                        <Box
+                          sx={{
+                            flex: brand.sentimentNeutral,
+                            bgcolor: '#cbd5e1',
+                            transition: 'flex 0.5s',
+                          }}
+                        />
+                        <Box
+                          sx={{
+                            flex: brand.sentimentNegative,
+                            bgcolor: geoColors.sentiment.negative,
+                            transition: 'flex 0.5s',
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                  ))}
+
+              {/* Legend */}
+              <Box sx={{ display: 'flex', gap: 3, mt: 1 }}>
+                {[
+                  { label: 'Positive', color: geoColors.sentiment.positive },
+                  { label: 'Neutral', color: '#cbd5e1' },
+                  { label: 'Negative', color: geoColors.sentiment.negative },
+                ].map(({ label, color }) => (
+                  <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Box
+                      sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }}
+                    />
+                    <Typography variant="caption" color="text.secondary">
+                      {label}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            </CardContent>
+          </Card>
+        </Box>
+
+        {/* ── Right sidebar: Analysis Configuration ── */}
+        <Box sx={{ position: { lg: 'sticky' }, top: { lg: 80 } }}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2.5 }}>
+                <TuneIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
+                <Typography variant="h3" fontWeight={700}>
+                  Analysis Configuration
+                </Typography>
+              </Box>
+
+              {/* Language */}
+              <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                <InputLabel sx={{ fontSize: '0.75rem', fontWeight: 600 }}>LANGUAGE</InputLabel>
+                <Select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  label="LANGUAGE"
+                >
+                  <MenuItem value="all">All Languages</MenuItem>
+                  <MenuItem value="it">Italian (IT)</MenuItem>
+                  <MenuItem value="en">English (EN)</MenuItem>
+                  <MenuItem value="fr">French (FR)</MenuItem>
+                </Select>
+              </FormControl>
+
+              {/* Region */}
+              <FormControl fullWidth size="small" sx={{ mb: 2.5 }}>
+                <InputLabel sx={{ fontSize: '0.75rem', fontWeight: 600 }}>REGION</InputLabel>
+                <Select
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  label="REGION"
+                >
+                  <MenuItem value="all">All Regions</MenuItem>
+                  <MenuItem value="eu">Europe</MenuItem>
+                  <MenuItem value="na">North America</MenuItem>
+                  <MenuItem value="global">Global</MenuItem>
+                </Select>
+              </FormControl>
+
+              {/* Brand selection */}
+              <Typography
+                variant="caption"
+                display="block"
+                sx={{
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  mb: 1,
+                  color: 'text.secondary',
+                  fontSize: '0.6875rem',
+                }}
+              >
+                Brand Selection
+              </Typography>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 2, maxHeight: 240, overflowY: 'auto' }}>
+                {isLoading
+                  ? Array.from({ length: 4 }).map((_, i) => (
+                      <Skeleton key={i} variant="rounded" height={32} />
+                    ))
+                  : allBrands.map((brand) => {
+                      const isTarget = brand === targetBrandRow?.brand
+                      const checked = pendingBrands.includes(brand)
+                      return (
+                        <Box
+                          key={brand}
+                          onClick={() =>
+                            setPendingBrands((prev) =>
+                              prev.includes(brand)
+                                ? prev.filter((b) => b !== brand)
+                                : [...prev, brand],
+                            )
+                          }
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.75,
+                            px: 1,
+                            py: 0.5,
+                            borderRadius: 'var(--geo-radius-sm)',
+                            cursor: 'pointer',
+                            bgcolor: isTarget && checked ? 'rgba(236,91,19,0.08)' : 'transparent',
+                            '&:hover': { bgcolor: isTarget ? 'rgba(236,91,19,0.08)' : 'action.hover' },
+                          }}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            size="small"
+                            disableRipple
+                            sx={{
+                              p: 0,
+                              color: isTarget ? 'primary.main' : undefined,
+                              '&.Mui-checked': { color: isTarget ? 'primary.main' : 'text.secondary' },
+                            }}
+                          />
+                          <Typography
+                            variant="body2"
+                            fontWeight={isTarget ? 600 : 400}
+                            sx={{ flex: 1 }}
+                          >
+                            {brand}
+                          </Typography>
+                          {isTarget && (
+                            <Chip
+                              label="TARGET"
+                              size="small"
+                              sx={{
+                                height: 16,
+                                fontSize: '0.5625rem',
+                                fontWeight: 700,
+                                bgcolor: 'primary.main',
+                                color: 'white',
+                                '& .MuiChip-label': { px: 0.75 },
+                              }}
+                            />
+                          )}
+                        </Box>
+                      )
+                    })}
+              </Box>
+
+              <Button
+                variant="contained"
+                fullWidth
+                disabled={!data}
+                onClick={() =>
+                  setSelectedBrands(
+                    pendingBrands.length === allBrands.length ? [] : pendingBrands,
+                  )
+                }
+                sx={{
+                  bgcolor: '#0f172a',
+                  '&:hover': { bgcolor: '#1e293b' },
+                  boxShadow: 'none',
+                }}
+              >
+                Apply Configuration
+              </Button>
+
+              {selectedBrands.length > 0 && (
+                <Button
+                  variant="text"
+                  fullWidth
+                  size="small"
+                  onClick={() => { setSelectedBrands([]); setPendingBrands(allBrands) }}
+                  sx={{ mt: 1, color: 'text.secondary', fontSize: '0.75rem' }}
+                >
+                  Mostra tutti
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        </Box>
+      </Box>
+
+      {/* ── Brand Performance Matrix ── */}
+      <Card>
+        <CardContent sx={{ pb: '16px !important' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 2,
+            }}
+          >
+            <Typography variant="h3" fontWeight={700}>
+              Brand Performance Matrix
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Showing top {Math.min(filteredCompetitors.length + (targetBrandRow ? 1 : 0), MATRIX_PAGE_SIZE)} of {totalBrands} brands
+            </Typography>
+          </Box>
+
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Brand Name</TableCell>
+                  <TableCell align="right">Mentions</TableCell>
+                  <TableCell align="right">Link Rate</TableCell>
+                  <TableCell align="right">Avg Rank</TableCell>
+                  <TableCell>Sentiment Trend</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {isLoading
+                  ? Array.from({ length: 4 }).map((_, i) => (
+                      <TableRow key={i}>
+                        {Array.from({ length: 5 }).map((_, j) => (
+                          <TableCell key={j}><Skeleton variant="text" /></TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  : (
+                    <>
+                      {/* Target brand — pinned first row */}
+                      {targetBrandRow && (
+                        <TableRow
+                          sx={{
+                            bgcolor: 'rgba(236,91,19,0.04)',
+                            '& .MuiTableCell-root': { borderColor: 'rgba(236,91,19,0.15)' },
+                          }}
+                        >
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                              <BrandAvatar name={targetBrandRow.brand} isTarget />
+                              <Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                  <Typography variant="body2" fontWeight={700}>
+                                    {targetBrandRow.brand}
+                                  </Typography>
+                                  <Chip
+                                    label="TARGET"
+                                    size="small"
+                                    sx={{
+                                      height: 16,
+                                      fontSize: '0.5625rem',
+                                      fontWeight: 700,
+                                      bgcolor: 'primary.main',
+                                      color: 'white',
+                                      '& .MuiChip-label': { px: 0.75 },
+                                    }}
+                                  />
+                                </Box>
+                              </Box>
+                            </Box>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight={700}>
+                              {targetBrandRow.totalMentions.toLocaleString()}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <LinkRateCell value={targetBrandRow.linkRate} />
+                          </TableCell>
+                          <TableCell align="right">
+                            <AvgRankCell value={targetBrandRow.avgRankPosition} />
+                          </TableCell>
+                          <TableCell>
+                            <SentimentMiniBar
+                              positive={targetBrandRow.sentimentPositive}
+                              neutral={targetBrandRow.sentimentNeutral}
+                              negative={targetBrandRow.sentimentNegative}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      )}
+
+                      {/* Competitors */}
+                      {pagedCompetitors.map((comp) => (
+                        <TableRow key={comp.brand} hover>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                              <BrandAvatar name={comp.brand} />
+                              <Typography variant="body2">{comp.brand}</Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2">
+                              {comp.totalMentions.toLocaleString()}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <LinkRateCell value={comp.linkRate} />
+                          </TableCell>
+                          <TableCell align="right">
+                            <AvgRankCell value={comp.avgRankPosition} />
+                          </TableCell>
+                          <TableCell>
+                            <SentimentMiniBar
+                              positive={comp.sentimentPositive}
+                              neutral={comp.sentimentNeutral}
+                              negative={comp.sentimentNegative}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+
+                      {filteredCompetitors.length === 0 && !targetBrandRow && (
+                        <TableRow>
+                          <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                            <Typography variant="body2" color="text.disabled">
+                              Nessun brand trovato per la configurazione selezionata.
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
+                  )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          {/* Pagination row */}
+          {!isLoading && totalMatrixPages > 1 && (
             <Box
               sx={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                mb: 1.5,
+                mt: 1.5,
+                pt: 1.5,
+                borderTop: '1px solid',
+                borderColor: 'divider',
               }}
             >
-              <Typography variant="body1" fontWeight={700}>
-                Brand Performance Matrix
-              </Typography>
               <Typography variant="caption" color="text.secondary">
-                Top {Math.min(filteredCompetitors.length, PAGE_SIZE)} di {totalCompetitors} brand
+                Showing top results from latest campaign run
               </Typography>
-            </Box>
-
-            {/* Target brand pinned row — AC-023 */}
-            {targetBrandRow && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 2,
-                  p: 1.5,
-                  mb: 0.5,
-                  bgcolor: 'primary.main',
-                  borderRadius: 'var(--geo-radius-sm)',
-                  color: 'primary.contrastText',
-                }}
-              >
-                <Box
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: '50%',
-                    bgcolor: 'rgba(255,255,255,0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 800,
-                    fontSize: 13,
-                    flexShrink: 0,
-                  }}
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  disabled={matrixPage === 0}
+                  onClick={() => setMatrixPage((p) => p - 1)}
+                  sx={{ minWidth: 32, px: 1, borderColor: 'divider' }}
                 >
-                  {targetBrandRow.brand[0]?.toUpperCase()}
-                </Box>
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography
-                      variant="body2"
-                      fontWeight={700}
-                      sx={{ color: 'inherit' }}
-                      noWrap
-                    >
-                      {targetBrandRow.brand}
-                    </Typography>
-                    <Chip
-                      label="target"
-                      size="small"
-                      sx={{
-                        height: 16,
-                        fontSize: 9,
-                        bgcolor: 'rgba(255,255,255,0.25)',
-                        color: 'inherit',
-                        '& .MuiChip-label': { px: 0.75 },
-                      }}
-                    />
-                  </Box>
-                </Box>
-                <Box sx={{ display: 'flex', gap: 3, flexShrink: 0 }}>
-                  <Metric label="Menzioni" value={String(targetBrandRow.totalMentions)} />
-                  <Metric
-                    label="Link Rate"
-                    value={`${(targetBrandRow.linkRate * 100).toFixed(1)}%`}
-                  />
-                  <Metric
-                    label="Avg Rank"
-                    value={
-                      targetBrandRow.avgRankPosition !== null
-                        ? `#${targetBrandRow.avgRankPosition.toFixed(1)}`
-                        : 'N/D'
-                    }
-                  />
-                </Box>
+                  ‹
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  disabled={matrixPage >= totalMatrixPages - 1}
+                  onClick={() => setMatrixPage((p) => p + 1)}
+                  sx={{ minWidth: 32, px: 1, borderColor: 'divider' }}
+                >
+                  ›
+                </Button>
               </Box>
-            )}
-
-            <Box sx={{ height: 480 }}>
-              <DataGrid
-                rows={pagedCompetitors}
-                columns={gridColumns}
-                loading={isLoading}
-                rowCount={filteredCompetitors.length}
-                paginationMode="client"
-                paginationModel={paginationModel}
-                onPaginationModelChange={setPaginationModel}
-                pageSizeOptions={[PAGE_SIZE]}
-                disableRowSelectionOnClick
-                slots={{
-                  noRowsOverlay: () => (
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        height: '100%',
-                      }}
-                    >
-                      <Typography color="text.secondary">
-                        Nessun competitor trovato per questa run.
-                      </Typography>
-                    </Box>
-                  ),
-                }}
-                sx={{
-                  '& .MuiDataGrid-columnHeaders': { bgcolor: 'background.default' },
-                }}
-              />
             </Box>
-          </Box>
-        ) : null}
-      </Box>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* ════════════════════ RIGHT SIDEBAR ════════════════════ */}
-      <Box sx={{ position: { lg: 'sticky' }, top: { lg: 80 } }}>
-        <Card sx={{ p: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <TuneIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-            <Typography variant="body1" fontWeight={700}>
-              Configurazione Analisi
-            </Typography>
-          </Box>
-
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            display="block"
-            sx={{ mb: 0.75, fontWeight: 600 }}
+      {/* ── Bottom CTAs ── */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Button
+          variant="text"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => router.push('/domains')}
+          sx={{ color: 'text.secondary', fontWeight: 500 }}
+        >
+          Back to Campaigns Overview
+        </Button>
+        <Box sx={{ display: 'flex', gap: 1.5 }}>
+          <Button
+            variant="outlined"
+            startIcon={<CompareArrowsIcon />}
+            onClick={() => router.push(`/domains/${clientKey}/runs/compare`)}
           >
-            SELEZIONE BRAND
-          </Typography>
-
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 0.5,
-              mb: 2,
-              maxHeight: 320,
-              overflowY: 'auto',
-            }}
-          >
-            {isLoading
-              ? Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} variant="rounded" height={32} />
-                ))
-              : allBrands.map((brand) => {
-                  const isTarget = brand === targetBrandRow?.brand
-                  return (
-                    <Box
-                      key={brand}
-                      onClick={() =>
-                        setPendingBrands((prev) =>
-                          prev.includes(brand)
-                            ? prev.filter((b) => b !== brand)
-                            : [...prev, brand],
-                        )
-                      }
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        p: 0.75,
-                        borderRadius: 1,
-                        cursor: 'pointer',
-                        '&:hover': { bgcolor: 'action.hover' },
-                      }}
-                    >
-                      <Checkbox
-                        checked={pendingBrands.includes(brand)}
-                        size="small"
-                        disableRipple
-                        sx={{ p: 0 }}
-                        color={isTarget ? 'primary' : 'default'}
-                      />
-                      <Typography variant="body2" fontWeight={isTarget ? 600 : 400}>
-                        {brand}
-                      </Typography>
-                      {isTarget && (
-                        <Chip
-                          label="target"
-                          size="small"
-                          color="primary"
-                          sx={{
-                            ml: 'auto',
-                            height: 16,
-                            fontSize: 9,
-                            '& .MuiChip-label': { px: 0.75 },
-                          }}
-                        />
-                      )}
-                    </Box>
-                  )
-                })}
-          </Box>
-
-          <Divider sx={{ mb: 2 }} />
-
+            Compare Brands
+          </Button>
           <Button
             variant="contained"
-            fullWidth
-            size="small"
-            onClick={() =>
-              setSelectedBrands(
-                pendingBrands.length === allBrands.length ? [] : pendingBrands,
-              )
-            }
-            disabled={!data}
-            sx={{ borderRadius: '20px' }}
+            startIcon={<ReplayIcon />}
+            onClick={() => router.push(`/domains/${clientKey}/runs/new`)}
           >
-            Applica configurazione
+            Schedule Re-Run
           </Button>
-
-          {selectedBrands.length > 0 && (
-            <Button
-              variant="text"
-              fullWidth
-              size="small"
-              onClick={() => {
-                setSelectedBrands([])
-                setPendingBrands(allBrands)
-              }}
-              sx={{ mt: 1, color: 'text.secondary', fontSize: 12 }}
-            >
-              Mostra tutti
-            </Button>
-          )}
-        </Card>
+        </Box>
       </Box>
+
     </Box>
   )
 }
