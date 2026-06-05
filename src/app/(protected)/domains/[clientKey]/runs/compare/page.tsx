@@ -103,10 +103,10 @@ function SovShiftRow({
   const delta = pctB - pctA
   const deltaLabel =
     Math.abs(delta) < 0.1
-      ? 'STABLE'
+      ? 'STABILE'
       : delta > 0
-      ? `+${delta.toFixed(1)}% GROWTH`
-      : `${delta.toFixed(1)}% LOSS`
+      ? `+${delta.toFixed(1)}% CRESCITA`
+      : `${delta.toFixed(1)}% CALO`
   const deltaColor =
     Math.abs(delta) < 0.1 ? 'text.disabled' : delta > 0 ? 'success.main' : 'error.main'
   const maxPct = Math.max(pctA, pctB, 1)
@@ -344,7 +344,7 @@ export default function RunComparePage({ params }: Props) {
 
   // ── Run label helper ──
   const runLabel = (r: RunListItem) => {
-    const date = new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    const date = new Date(r.createdAt).toLocaleDateString('it-IT', { month: 'short', day: 'numeric', year: 'numeric' })
     return `${r.profileKey} · ${date}`
   }
 
@@ -366,7 +366,7 @@ export default function RunComparePage({ params }: Props) {
             {/* Left: title */}
             <Box>
               <Chip
-                label="ANALYSIS MODE"
+                label="MODALITÀ ANALISI"
                 size="small"
                 sx={{
                   mb: 1,
@@ -380,10 +380,10 @@ export default function RunComparePage({ params }: Props) {
                 }}
               />
               <Typography variant="h1" sx={{ fontWeight: 800, mb: 0.5 }}>
-                Run Comparison
+                Confronto run
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Detailed analysis of visibility and ranking shifts between strategic monitoring periods.
+                Analisi dettagliata delle variazioni di visibilità e rank tra i periodi di monitoraggio.
               </Typography>
             </Box>
 
@@ -400,7 +400,7 @@ export default function RunComparePage({ params }: Props) {
               {/* Run A */}
               <Box>
                 <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 0.5, fontWeight: 600, fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Run A (Baseline)
+                  Run A (Riferimento)
                 </Typography>
                 <FormControl size="small" sx={{ minWidth: 200 }}>
                   <Select
@@ -408,18 +408,18 @@ export default function RunComparePage({ params }: Props) {
                     onChange={(e) => setRunAId(e.target.value)}
                     displayEmpty
                     renderValue={(v) => {
-                      if (!v) return <Typography color="text.disabled" variant="body2">Select run…</Typography>
+                      if (!v) return <Typography color="text.disabled" variant="body2">Seleziona run…</Typography>
                       const r = runs.find((x) => x.runId === v)
                       return r ? runLabel(r) : v
                     }}
                   >
-                    {runsLoading && <MenuItem disabled>Loading…</MenuItem>}
+                    {runsLoading && <MenuItem disabled>Caricamento…</MenuItem>}
                     {runs.filter((r) => r.runId !== runBId).map((r) => (
                       <MenuItem key={r.runId} value={r.runId}>
                         <Box>
                           <Typography variant="body2" fontWeight={500}>{r.profileKey}</Typography>
                           <Typography variant="caption" color="text.disabled">
-                            {new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            {new Date(r.createdAt).toLocaleDateString('it-IT', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </Typography>
                         </Box>
                       </MenuItem>
@@ -433,7 +433,7 @@ export default function RunComparePage({ params }: Props) {
               {/* Run B */}
               <Box>
                 <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 0.5, fontWeight: 600, fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Run B (Current)
+                  Run B (Corrente)
                 </Typography>
                 <FormControl size="small" sx={{ minWidth: 200 }}>
                   <Select
@@ -441,18 +441,18 @@ export default function RunComparePage({ params }: Props) {
                     onChange={(e) => setRunBId(e.target.value)}
                     displayEmpty
                     renderValue={(v) => {
-                      if (!v) return <Typography color="text.disabled" variant="body2">Select run…</Typography>
+                      if (!v) return <Typography color="text.disabled" variant="body2">Seleziona run…</Typography>
                       const r = runs.find((x) => x.runId === v)
                       return r ? runLabel(r) : v
                     }}
                   >
-                    {runsLoading && <MenuItem disabled>Loading…</MenuItem>}
+                    {runsLoading && <MenuItem disabled>Caricamento…</MenuItem>}
                     {runs.filter((r) => r.runId !== runAId).map((r) => (
                       <MenuItem key={r.runId} value={r.runId}>
                         <Box>
                           <Typography variant="body2" fontWeight={500}>{r.profileKey}</Typography>
                           <Typography variant="caption" color="text.disabled">
-                            {new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            {new Date(r.createdAt).toLocaleDateString('it-IT', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </Typography>
                         </Box>
                       </MenuItem>
@@ -468,7 +468,7 @@ export default function RunComparePage({ params }: Props) {
                 disabled={!bothSelected}
                 sx={{ mt: 2.5 }}
               >
-                Refresh
+                Aggiorna
               </Button>
             </Box>
           </Box>
@@ -481,10 +481,10 @@ export default function RunComparePage({ params }: Props) {
           <CardContent sx={{ textAlign: 'center', py: 8 }}>
             <BarChartIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
             <Typography variant="h3" color="text.secondary" gutterBottom>
-              Select two runs to compare
+              Seleziona due run da confrontare
             </Typography>
             <Typography variant="body2" color="text.disabled">
-              Choose Run A (baseline) and Run B (current) from the dropdowns above to see the delta analysis.
+              Scegli Run A (riferimento) e Run B (corrente) dai menu a tendina per visualizzare l&apos;analisi delta.
             </Typography>
           </CardContent>
         </Card>
@@ -507,7 +507,7 @@ export default function RunComparePage({ params }: Props) {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                         <VisibilityIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6875rem' }}>
-                          Avg Visibility Rate
+                          Visibilità media
                         </Typography>
                       </Box>
                       <DeltaBadge value={kpiDelta.visibility.delta} unit="%" />
@@ -530,7 +530,7 @@ export default function RunComparePage({ params }: Props) {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                         <BarChartIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6875rem' }}>
-                          Avg Rank
+                          Rank medio
                         </Typography>
                       </Box>
                       {/* Rank: positive delta means improvement (lower number) */}
@@ -554,7 +554,7 @@ export default function RunComparePage({ params }: Props) {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                         <AlternateEmailIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
                         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.6875rem' }}>
-                          Target Brand Mentions
+                          Menzioni brand target
                         </Typography>
                       </Box>
                       <DeltaBadge value={kpiDelta.mentions.delta} />
@@ -584,9 +584,9 @@ export default function RunComparePage({ params }: Props) {
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                 <Box>
-                  <Typography variant="h3" fontWeight={700}>Visibility Over Time</Typography>
+                  <Typography variant="h3" fontWeight={700}>Visibilità per keyword</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Keyword visibility comparison between the two runs
+                    Confronto visibilità keyword tra le due run
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 2 }}>
@@ -620,7 +620,7 @@ export default function RunComparePage({ params }: Props) {
           <Card>
             <CardContent>
               <Typography variant="h3" fontWeight={700} mb={2.5}>
-                Competitor Share Shift (SOV)
+                Variazione quota competitor (SOV)
               </Typography>
 
               {loading || !sovEntries.length ? (
@@ -647,7 +647,7 @@ export default function RunComparePage({ params }: Props) {
           <CardContent sx={{ pb: '16px !important' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h3" fontWeight={700}>
-                Keyword Performance Delta
+                Delta performance keyword
               </Typography>
               <Box sx={{ display: 'flex', gap: 0.5 }}>
                 {(['movers', 'drops'] as const).map((mode) => (
@@ -662,7 +662,7 @@ export default function RunComparePage({ params }: Props) {
                       ...(kwMode !== mode && { borderColor: 'divider', color: 'text.secondary' }),
                     }}
                   >
-                    {mode === 'movers' ? 'Biggest Movers' : 'Biggest Drops'}
+                    {mode === 'movers' ? 'Maggiori salite' : 'Maggiori cali'}
                   </Button>
                 ))}
               </Box>
@@ -673,12 +673,12 @@ export default function RunComparePage({ params }: Props) {
                 <TableHead>
                   <TableRow>
                     <TableCell>Keyword</TableCell>
-                    <TableCell align="center">Run A Rank</TableCell>
-                    <TableCell align="center">Run B Rank</TableCell>
+                    <TableCell align="center">Rank Run A</TableCell>
+                    <TableCell align="center">Rank Run B</TableCell>
                     <TableCell align="center">Delta</TableCell>
-                    <TableCell align="right">Run A Vis</TableCell>
-                    <TableCell align="right">Run B Vis</TableCell>
-                    <TableCell align="right">Vis Delta</TableCell>
+                    <TableCell align="right">Visib. Run A</TableCell>
+                    <TableCell align="right">Visib. Run B</TableCell>
+                    <TableCell align="right">Delta visib.</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -769,7 +769,7 @@ export default function RunComparePage({ params }: Props) {
             {kwDelta.length > 10 && (
               <Box sx={{ textAlign: 'center', mt: 2 }}>
                 <Button variant="text" sx={{ color: 'primary.main', fontWeight: 700 }}>
-                  View All Keyword Deltas ({kwDelta.length})
+                  Vedi tutti i delta keyword ({kwDelta.length})
                 </Button>
               </Box>
             )}

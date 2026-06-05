@@ -12,8 +12,8 @@ import { AppRouterCacheProvider } from '@mui/material-nextjs/v14-appRouter'
 import Providers from './providers'
 
 export const metadata: Metadata = {
-  title: 'Geo-SmartAudit Platform',
-  description: 'AI Visibility analytics for brands',
+  title: 'Geo-SmartAudit Piattaforma',
+  description: 'AI Visibility analytics per brand',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

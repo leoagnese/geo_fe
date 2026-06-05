@@ -243,16 +243,16 @@ export default function RankingPage({ params }: RankingPageProps) {
           : (
             <>
               <StatCard
-                label="Total Brands Identified"
+                label="Brand identificati"
                 value={String(totalBrands)}
                 delta={{ label: '+5.2%', positive: true }}
               />
               <StatCard
-                label="Top Brand"
+                label="Brand leader"
                 value={topBrand}
               />
               <StatCard
-                label="Target Share of Voice"
+                label="Share of Voice target"
                 value={targetSov}
                 delta={{ label: '+1.8%', positive: true }}
               >
@@ -278,7 +278,7 @@ export default function RankingPage({ params }: RankingPageProps) {
                 )}
               </StatCard>
               <StatCard
-                label="Avg Sentiment Score"
+                label="Score sentiment medio"
                 value={avgSentiment}
                 delta={{ label: '+0.2%', positive: true }}
               >
@@ -319,15 +319,15 @@ export default function RankingPage({ params }: RankingPageProps) {
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Box>
-                  <Typography variant="h3" fontWeight={700}>Competitive Landscape</Typography>
+                  <Typography variant="h3" fontWeight={700}>Panorama competitivo</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Brand visibility vs market ranking
+                    Visibilità brand vs ranking di mercato
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 2 }}>
                   {[
-                    { label: 'TARGET BRAND', color: 'primary.main' },
-                    { label: 'COMPETITORS', color: '#94a3b8' },
+                    { label: 'BRAND TARGET', color: 'primary.main' },
+                    { label: 'COMPETITOR', color: '#94a3b8' },
                   ].map(({ label, color }) => (
                     <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                       <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
@@ -351,13 +351,13 @@ export default function RankingPage({ params }: RankingPageProps) {
                 <ScatterChart
                   series={[
                     ...(targetScatter.length > 0
-                      ? [{ data: targetScatter, label: 'Target Brand', color: '#ec5b13', markerSize: 14 }]
+                      ? [{ data: targetScatter, label: 'Brand Target', color: '#ec5b13', markerSize: 14 }]
                       : []),
                     ...(competitorScatter.length > 0
-                      ? [{ data: competitorScatter, label: 'Competitors', color: '#94a3b8', markerSize: 8 }]
+                      ? [{ data: competitorScatter, label: 'Competitor', color: '#94a3b8', markerSize: 8 }]
                       : []),
                   ]}
-                  xAxis={[{ label: 'Average Rank (1-10)', min: 0 }]}
+                  xAxis={[{ label: 'Rank medio (1-10)', min: 0 }]}
                   yAxis={[{ label: 'Visibility Score' }]}
                   height={300}
                   margin={{ left: 60, right: 20, top: 20, bottom: 60 }}
@@ -419,7 +419,7 @@ export default function RankingPage({ params }: RankingPageProps) {
                                 : 'text.secondary',
                           }}
                         >
-                          {(brand.sentimentPositive * 100).toFixed(0)}% POSITIVE
+                          {(brand.sentimentPositive * 100).toFixed(0)}% POSITIVO
                         </Typography>
                       </Box>
 
@@ -460,9 +460,9 @@ export default function RankingPage({ params }: RankingPageProps) {
               {/* Legend */}
               <Box sx={{ display: 'flex', gap: 3, mt: 1 }}>
                 {[
-                  { label: 'Positive', color: geoColors.sentiment.positive },
-                  { label: 'Neutral', color: '#cbd5e1' },
-                  { label: 'Negative', color: geoColors.sentiment.negative },
+                  { label: 'Positivo', color: geoColors.sentiment.positive },
+                  { label: 'Neutro', color: '#cbd5e1' },
+                  { label: 'Negativo', color: geoColors.sentiment.negative },
                 ].map(({ label, color }) => (
                   <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <Box
@@ -485,37 +485,37 @@ export default function RankingPage({ params }: RankingPageProps) {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2.5 }}>
                 <TuneIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
                 <Typography variant="h3" fontWeight={700}>
-                  Analysis Configuration
+                  Configurazione analisi
                 </Typography>
               </Box>
 
               {/* Language */}
               <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                <InputLabel sx={{ fontSize: '0.75rem', fontWeight: 600 }}>LANGUAGE</InputLabel>
+                <InputLabel sx={{ fontSize: '0.75rem', fontWeight: 600 }}>LINGUA</InputLabel>
                 <Select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  label="LANGUAGE"
+                  label="LINGUA"
                 >
-                  <MenuItem value="all">All Languages</MenuItem>
-                  <MenuItem value="it">Italian (IT)</MenuItem>
-                  <MenuItem value="en">English (EN)</MenuItem>
-                  <MenuItem value="fr">French (FR)</MenuItem>
+                  <MenuItem value="all">Tutte le lingue</MenuItem>
+                  <MenuItem value="it">Italiano (IT)</MenuItem>
+                  <MenuItem value="en">Inglese (EN)</MenuItem>
+                  <MenuItem value="fr">Francese (FR)</MenuItem>
                 </Select>
               </FormControl>
 
               {/* Region */}
               <FormControl fullWidth size="small" sx={{ mb: 2.5 }}>
-                <InputLabel sx={{ fontSize: '0.75rem', fontWeight: 600 }}>REGION</InputLabel>
+                <InputLabel sx={{ fontSize: '0.75rem', fontWeight: 600 }}>REGIONE</InputLabel>
                 <Select
                   value={region}
                   onChange={(e) => setRegion(e.target.value)}
-                  label="REGION"
+                  label="REGIONE"
                 >
-                  <MenuItem value="all">All Regions</MenuItem>
-                  <MenuItem value="eu">Europe</MenuItem>
-                  <MenuItem value="na">North America</MenuItem>
-                  <MenuItem value="global">Global</MenuItem>
+                  <MenuItem value="all">Tutte le regioni</MenuItem>
+                  <MenuItem value="eu">Europa</MenuItem>
+                  <MenuItem value="na">Nord America</MenuItem>
+                  <MenuItem value="global">Globale</MenuItem>
                 </Select>
               </FormControl>
 
@@ -532,7 +532,7 @@ export default function RankingPage({ params }: RankingPageProps) {
                   fontSize: '0.6875rem',
                 }}
               >
-                Brand Selection
+                Selezione brand
               </Typography>
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 2, maxHeight: 240, overflowY: 'auto' }}>
@@ -616,7 +616,7 @@ export default function RankingPage({ params }: RankingPageProps) {
                   boxShadow: 'none',
                 }}
               >
-                Apply Configuration
+                Applica configurazione
               </Button>
 
               {selectedBrands.length > 0 && (
@@ -647,10 +647,10 @@ export default function RankingPage({ params }: RankingPageProps) {
             }}
           >
             <Typography variant="h3" fontWeight={700}>
-              Brand Performance Matrix
+              Matrice performance brand
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Showing top {Math.min(filteredCompetitors.length + (targetBrandRow ? 1 : 0), MATRIX_PAGE_SIZE)} of {totalBrands} brands
+              Top {Math.min(filteredCompetitors.length + (targetBrandRow ? 1 : 0), MATRIX_PAGE_SIZE)} di {totalBrands} brand
             </Typography>
           </Box>
 
@@ -658,11 +658,11 @@ export default function RankingPage({ params }: RankingPageProps) {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Brand Name</TableCell>
-                  <TableCell align="right">Mentions</TableCell>
+                  <TableCell>Nome brand</TableCell>
+                  <TableCell align="right">Menzioni</TableCell>
                   <TableCell align="right">Link Rate</TableCell>
-                  <TableCell align="right">Avg Rank</TableCell>
-                  <TableCell>Sentiment Trend</TableCell>
+                  <TableCell align="right">Rank medio</TableCell>
+                  <TableCell>Andamento sentiment</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -788,7 +788,7 @@ export default function RankingPage({ params }: RankingPageProps) {
               }}
             >
               <Typography variant="caption" color="text.secondary">
-                Showing top results from latest campaign run
+                Risultati più recenti dall'ultima run
               </Typography>
               <Box sx={{ display: 'flex', gap: 0.5 }}>
                 <Button
@@ -823,7 +823,7 @@ export default function RankingPage({ params }: RankingPageProps) {
           onClick={() => router.push('/domains')}
           sx={{ color: 'text.secondary', fontWeight: 500 }}
         >
-          Back to Campaigns Overview
+          Torna alla panoramica
         </Button>
         <Box sx={{ display: 'flex', gap: 1.5 }}>
           <Button
@@ -831,14 +831,14 @@ export default function RankingPage({ params }: RankingPageProps) {
             startIcon={<CompareArrowsIcon />}
             onClick={() => router.push(`/domains/${clientKey}/runs/compare`)}
           >
-            Compare Brands
+            Confronta brand
           </Button>
           <Button
             variant="contained"
             startIcon={<ReplayIcon />}
             onClick={() => router.push(`/domains/${clientKey}/runs/new`)}
           >
-            Schedule Re-Run
+            Avvia nuova run
           </Button>
         </Box>
       </Box>

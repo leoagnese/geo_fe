@@ -136,7 +136,7 @@ export default function ReportLlmPage({ params }: ReportLlmPageProps) {
     return { total, avgVis, leaders, critical, topKw, bottomKw, avgRank }
   }, [allKw])
 
-  const tocSections = ['Executive Summary', 'Keyword Performance', 'Persona Analysis', 'Recommendations', 'Technical Details']
+  const tocSections = ['Executive Summary', 'Performance keyword', 'Analisi persona', 'Raccomandazioni', 'Dettagli tecnici']
 
   return (
     <Box sx={{ display: 'flex', gap: 0, minHeight: '70vh' }}>
@@ -164,17 +164,17 @@ export default function ReportLlmPage({ params }: ReportLlmPageProps) {
         <Divider sx={{ my: 2 }} />
 
         <Typography variant="overline" sx={{ px: 1.5, mb: 1, fontSize: '0.625rem', color: 'text.disabled', display: 'block' }}>
-          QUICK STATS
+          STATISTICHE RAPIDE
         </Typography>
         {kwLoading ? (
           <Skeleton variant="rounded" height={96} sx={{ mx: 1.5, borderRadius: 1.5 }} />
         ) : analytics ? (
           <Box sx={{ px: 1.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             {[
-              { label: 'Total Keywords', value: analytics.total.toString() },
-              { label: 'Avg Visibility', value: `${(analytics.avgVis * 100).toFixed(1)}%` },
-              { label: 'Leading', value: analytics.leaders.length.toString() },
-              { label: 'Critical', value: analytics.critical.length.toString() },
+              { label: 'Keyword totali', value: analytics.total.toString() },
+              { label: 'Visibilità media', value: `${(analytics.avgVis * 100).toFixed(1)}%` },
+              { label: 'Leader', value: analytics.leaders.length.toString() },
+              { label: 'Critiche', value: analytics.critical.length.toString() },
             ].map((item) => (
               <Box key={item.label}>
                 <Typography variant="caption" color="text.disabled" display="block">{item.label}</Typography>
@@ -239,7 +239,7 @@ export default function ReportLlmPage({ params }: ReportLlmPageProps) {
             <Box sx={{ mb: 4 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <Typography variant="h2" fontWeight={800}>Executive Summary</Typography>
-                <Chip label="AUTO-GENERATED" size="small" sx={{ bgcolor: '#eff6ff', color: '#2563eb', fontWeight: 700, fontSize: '0.5625rem', height: 18, borderRadius: 'var(--geo-radius-sm)', '& .MuiChip-label': { px: 1 } }} />
+                <Chip label="AUTO-GENERATO" size="small" sx={{ bgcolor: '#eff6ff', color: '#2563eb', fontWeight: 700, fontSize: '0.5625rem', height: 18, borderRadius: 'var(--geo-radius-sm)', '& .MuiChip-label': { px: 1 } }} />
               </Box>
               <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.75, mb: 2 }}>
                 L'analisi ha coperto <strong>{analytics.total} keyword</strong> in questa run. Il brand registra una visibilità media
@@ -271,7 +271,7 @@ export default function ReportLlmPage({ params }: ReportLlmPageProps) {
 
             {/* Keyword Performance */}
             <Box sx={{ mb: 4 }}>
-              <Typography variant="h2" fontWeight={800} mb={2}>Keyword Performance</Typography>
+              <Typography variant="h2" fontWeight={800} mb={2}>Performance keyword</Typography>
               <Typography variant="body2" color="text.secondary" mb={2}>
                 Top 5 keyword per visibilità LLM:
               </Typography>
@@ -280,8 +280,8 @@ export default function ReportLlmPage({ params }: ReportLlmPageProps) {
                   <TableHead>
                     <TableRow>
                       <TableCell>Keyword</TableCell>
-                      <TableCell align="center">Visibility</TableCell>
-                      <TableCell align="center">Avg Rank</TableCell>
+                      <TableCell align="center">Visibilità</TableCell>
+                      <TableCell align="center">Rank medio</TableCell>
                       <TableCell align="center">Link Rate</TableCell>
                     </TableRow>
                   </TableHead>
@@ -312,8 +312,8 @@ export default function ReportLlmPage({ params }: ReportLlmPageProps) {
                   <TableHead>
                     <TableRow>
                       <TableCell>Keyword</TableCell>
-                      <TableCell align="center">Visibility</TableCell>
-                      <TableCell align="center">Avg Rank</TableCell>
+                      <TableCell align="center">Visibilità</TableCell>
+                      <TableCell align="center">Rank medio</TableCell>
                       <TableCell align="center">Menzioni</TableCell>
                     </TableRow>
                   </TableHead>
@@ -341,7 +341,7 @@ export default function ReportLlmPage({ params }: ReportLlmPageProps) {
 
             {/* Persona Analysis */}
             <Box sx={{ mb: 4 }}>
-              <Typography variant="h2" fontWeight={800} mb={2}>Persona Analysis</Typography>
+              <Typography variant="h2" fontWeight={800} mb={2}>Analisi persona</Typography>
               {personasLoading ? (
                 <Skeleton variant="rounded" height={160} />
               ) : allPersonas.length === 0 ? (
@@ -359,11 +359,11 @@ export default function ReportLlmPage({ params }: ReportLlmPageProps) {
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 2 }}>
                         <Box>
-                          <Typography variant="caption" color="text.disabled" display="block">Visibility</Typography>
+                          <Typography variant="caption" color="text.disabled" display="block">Visibilità</Typography>
                           <Typography variant="body2" fontWeight={700}>{(p.visibilityPct * 100).toFixed(1)}%</Typography>
                         </Box>
                         <Box>
-                          <Typography variant="caption" color="text.disabled" display="block">Avg Rank</Typography>
+                          <Typography variant="caption" color="text.disabled" display="block">Rank medio</Typography>
                           <Typography variant="body2" fontWeight={700}>{p.avgRankPosition !== null ? `#${p.avgRankPosition.toFixed(1)}` : '—'}</Typography>
                         </Box>
                         <Box>
@@ -431,7 +431,7 @@ export default function ReportLlmPage({ params }: ReportLlmPageProps) {
         {/* Download actions */}
         <Box>
           <Typography variant="overline" sx={{ fontSize: '0.625rem', color: 'text.disabled', mb: 1, display: 'block' }}>
-            EXPORT
+            ESPORTA
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             {xlsxFile?.driveUrl ? (
@@ -462,7 +462,7 @@ export default function ReportLlmPage({ params }: ReportLlmPageProps) {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.5 }}>
             <LightbulbIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
             <Typography variant="overline" sx={{ fontSize: '0.625rem', color: 'text.disabled' }}>
-              AI OBSERVATIONS
+              OSSERVAZIONI AI
             </Typography>
           </Box>
 

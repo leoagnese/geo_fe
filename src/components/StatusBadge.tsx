@@ -5,13 +5,13 @@ export type PerformanceLevel = 'leading' | 'competitive' | 'rising' | 'stable'
 export type BadgeVariant = SeverityLevel | PerformanceLevel
 
 const CONFIG: Record<BadgeVariant, { label: string; bgcolor: string; color: string }> = {
-  critical:     { label: 'CRITICAL',    bgcolor: '#fef2f2', color: '#dc2626' },
-  'high-risk':  { label: 'HIGH RISK',   bgcolor: '#fff7ed', color: '#ea580c' },
-  monitoring:   { label: 'MONITORING',  bgcolor: '#f1f5f9', color: '#475569' },
-  leading:      { label: 'Leading',     bgcolor: '#f0fdf4', color: '#16a34a' },
-  competitive:  { label: 'Competitive', bgcolor: '#fffbeb', color: '#d97706' },
-  rising:       { label: 'Rising',      bgcolor: '#eff6ff', color: '#2563eb' },
-  stable:       { label: 'Stable',      bgcolor: '#f1f5f9', color: '#475569' },
+  critical:     { label: 'CRITICO',      bgcolor: '#fef2f2', color: '#dc2626' },
+  'high-risk':  { label: 'ALTO RISCHIO', bgcolor: '#fff7ed', color: '#ea580c' },
+  monitoring:   { label: 'MONITORAGGIO', bgcolor: '#f1f5f9', color: '#475569' },
+  leading:      { label: 'Leader',       bgcolor: '#f0fdf4', color: '#16a34a' },
+  competitive:  { label: 'Competitivo',  bgcolor: '#fffbeb', color: '#d97706' },
+  rising:       { label: 'In crescita',  bgcolor: '#eff6ff', color: '#2563eb' },
+  stable:       { label: 'Stabile',      bgcolor: '#f1f5f9', color: '#475569' },
 }
 
 interface StatusBadgeProps {

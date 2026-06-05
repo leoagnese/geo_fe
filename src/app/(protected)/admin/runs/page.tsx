@@ -88,7 +88,7 @@ export default function AdminRunsPage() {
         </Typography>
       ),
     },
-    { field: 'clientKey', headerName: 'Domain', width: 160 },
+    { field: 'clientKey', headerName: 'Dominio', width: 160 },
     {
       field: 'status',
       headerName: 'Stato',

@@ -84,7 +84,7 @@ function LoginForm() {
           color="text.secondary"
           sx={{ textAlign: 'center', mb: 4 }}
         >
-          AI Visibility Platform
+          Piattaforma AI Visibility
         </Typography>
 
         {error && (

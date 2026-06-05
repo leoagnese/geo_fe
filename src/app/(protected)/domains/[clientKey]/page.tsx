@@ -204,7 +204,7 @@ export default function DomainPage({ params }: DomainPageProps) {
             <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               <Box>
                 <Typography variant="caption" color="text.disabled">
-                  Domain target
+                  Dominio target
                 </Typography>
                 <Typography variant="body1">{domain.targetDomain}</Typography>
               </Box>

@@ -28,11 +28,11 @@ interface ResultsLayoutProps {
 }
 
 const STATUS_LABEL: Record<string, { label: string; color: string; bgcolor: string }> = {
-  done:      { label: 'COMPLETED', color: '#16a34a', bgcolor: '#f0fdf4' },
-  running:   { label: 'RUNNING',   color: '#2563eb', bgcolor: '#eff6ff' },
-  queued:    { label: 'QUEUED',    color: '#d97706', bgcolor: '#fffbeb' },
-  error:     { label: 'ERROR',     color: '#dc2626', bgcolor: '#fef2f2' },
-  cancelled: { label: 'CANCELLED', color: '#475569', bgcolor: '#f1f5f9' },
+  done:      { label: 'COMPLETATA', color: '#16a34a', bgcolor: '#f0fdf4' },
+  running:   { label: 'IN CORSO',   color: '#2563eb', bgcolor: '#eff6ff' },
+  queued:    { label: 'IN CODA',    color: '#d97706', bgcolor: '#fffbeb' },
+  error:     { label: 'ERRORE',     color: '#dc2626', bgcolor: '#fef2f2' },
+  cancelled: { label: 'ANNULLATA',  color: '#475569', bgcolor: '#f1f5f9' },
 }
 
 export default function ResultsLayout({ children, params }: ResultsLayoutProps) {
@@ -58,10 +58,10 @@ export default function ResultsLayout({ children, params }: ResultsLayoutProps) 
 
   const base = `/domains/${clientKey}/runs/${runId}/results`
   const tabs = [
-    { label: 'Summary',         path: `${base}/overview` },
-    { label: 'Query Metrics',   path: `${base}/keywords` },
-    { label: 'Brand Analysis',  path: `${base}/ranking` },
-    { label: 'LLM Report',      path: `${base}/personas` },
+    { label: 'Riepilogo',          path: `${base}/overview` },
+    { label: 'Query Metrics',      path: `${base}/keywords` },
+    { label: 'Brand Analysis',     path: `${base}/ranking` },
+    { label: 'Report LLM',         path: `${base}/personas` },
   ]
   const currentTab = Math.max(0, tabs.findIndex((t) => pathname.startsWith(t.path)))
 
@@ -89,7 +89,7 @@ export default function ResultsLayout({ children, params }: ResultsLayoutProps) 
         </Typography>
         <Typography variant="caption" color="text.disabled">›</Typography>
         <Typography variant="caption" color="primary.main" fontWeight={600}>
-          {shortRunId} Analysis
+          {shortRunId} Analisi
         </Typography>
       </Box>
 
@@ -138,8 +138,8 @@ export default function ResultsLayout({ children, params }: ResultsLayoutProps) 
                 </Box>
                 {executedDate && (
                   <>
-                    {' · '}Executed:{' '}
-                    {new Date(executedDate).toLocaleString('en-US', {
+                    {' · '}Eseguita:{' '}
+                    {new Date(executedDate).toLocaleString('it-IT', {
                       month: 'short',
                       day: 'numeric',
                       year: 'numeric',
@@ -161,14 +161,14 @@ export default function ResultsLayout({ children, params }: ResultsLayoutProps) 
             onClick={() => router.push(`${base}/personas`)}
             sx={{ fontWeight: 600 }}
           >
-            Export PDF
+            Esporta report
           </Button>
           <Button
             variant="contained"
             startIcon={<ReplayIcon />}
             onClick={() => router.push(`/domains/${clientKey}/runs/new`)}
           >
-            Re-run Analysis
+            Avvia nuova run
           </Button>
         </Box>
       </Box>

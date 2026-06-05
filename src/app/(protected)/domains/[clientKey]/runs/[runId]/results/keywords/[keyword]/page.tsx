@@ -59,9 +59,9 @@ interface Props {
 
 // ── Sentiment label + color from visibilityPct ─────────────────
 function sentimentLabel(visibilityPct: number): { label: string; color: string } {
-  if (visibilityPct >= 0.6) return { label: 'Positive', color: geoColors.sentiment.positive }
-  if (visibilityPct >= 0.35) return { label: 'Neutral', color: geoColors.sentiment.neutral }
-  return { label: 'Negative', color: geoColors.sentiment.negative }
+  if (visibilityPct >= 0.6) return { label: 'Positivo', color: geoColors.sentiment.positive }
+  if (visibilityPct >= 0.35) return { label: 'Neutro', color: geoColors.sentiment.neutral }
+  return { label: 'Negativo', color: geoColors.sentiment.negative }
 }
 
 // ── Brand presence bar ─────────────────────────────────────────
@@ -71,7 +71,7 @@ function BrandBar({ label, value, isTarget, maxVal }: { label: string; value: nu
     <Box sx={{ mb: 1.5 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
         <Typography variant="body2" fontWeight={isTarget ? 700 : 400} color={isTarget ? 'text.primary' : 'text.secondary'}>
-          {label}{isTarget ? ' (You)' : ''}
+          {label}{isTarget ? ' (Tu)' : ''}
         </Typography>
         <Typography variant="body2" fontWeight={700} color={isTarget ? 'primary.main' : 'text.secondary'}>
           {(value * 100).toFixed(1)}%
@@ -87,9 +87,9 @@ function BrandBar({ label, value, isTarget, maxVal }: { label: string; value: nu
 // ── Visibility badge for SERP table ───────────────────────────
 function VisBadge({ level }: { level: 'high' | 'medium' | 'low' }) {
   const cfg = {
-    high:   { label: 'High',   bgcolor: '#f0fdf4', color: '#16a34a' },
-    medium: { label: 'Medium', bgcolor: '#fffbeb', color: '#d97706' },
-    low:    { label: 'Low',    bgcolor: '#fef2f2', color: '#dc2626' },
+    high:   { label: 'Alta',   bgcolor: '#f0fdf4', color: '#16a34a' },
+    medium: { label: 'Media', bgcolor: '#fffbeb', color: '#d97706' },
+    low:    { label: 'Bassa', bgcolor: '#fef2f2', color: '#dc2626' },
   }[level]
   return (
     <Chip label={cfg.label} size="small" sx={{ bgcolor: cfg.bgcolor, color: cfg.color, fontWeight: 700, fontSize: '0.6875rem', height: 20, borderRadius: 'var(--geo-radius-sm)', '& .MuiChip-label': { px: 1 } }} />
@@ -208,7 +208,7 @@ export default function KeywordDetailPage({ params }: Props) {
         engine: 'GPT-4o',
         level,
         rank: p.avgRankPosition,
-        sentiment: vis >= 0.6 ? 'Highly Recommended' : vis >= 0.35 ? 'Neutral Citation' : 'Critical Context',
+        sentiment: vis >= 0.6 ? 'Altamente raccomandato' : vis >= 0.35 ? 'Citazione neutra' : 'Contesto critico',
       }
     }),
   [topPersonas, decodedKeyword])
@@ -224,7 +224,7 @@ export default function KeywordDetailPage({ params }: Props) {
           onClick={() => router.push(`/domains/${clientKey}/runs/${runId}/results/keywords`)}
           sx={{ mb: 1.5, color: 'text.secondary', fontWeight: 500 }}
         >
-          Back to Keywords Overview
+          Torna alla panoramica keyword
         </Button>
 
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
@@ -234,7 +234,7 @@ export default function KeywordDetailPage({ params }: Props) {
                 {decodedKeyword}
               </Typography>
               <Chip
-                label="ACTIVE ANALYSIS"
+                label="ANALISI ATTIVA"
                 size="small"
                 sx={{
                   bgcolor: '#f0fdf4', color: '#16a34a', fontWeight: 700,
@@ -244,12 +244,12 @@ export default function KeywordDetailPage({ params }: Props) {
               />
             </Box>
             <Typography variant="body2" color="text.secondary">
-              {clientKey} · Last updated in this run
+              {clientKey} · Aggiornato in questa run
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1.5 }}>
-            <Button variant="outlined" startIcon={<ShareIcon />}>Share</Button>
-            <Button variant="contained" startIcon={<FileDownloadIcon />}>Export Report</Button>
+            <Button variant="outlined" startIcon={<ShareIcon />}>Condividi</Button>
+            <Button variant="contained" startIcon={<FileDownloadIcon />}>Esporta report</Button>
           </Box>
         </Box>
       </Box>
@@ -261,7 +261,7 @@ export default function KeywordDetailPage({ params }: Props) {
           : (
             <>
               <StatCard
-                label="Avg. Visibility Rate"
+                label="Tasso visibilità medio"
                 value={`${visibilityPct}%`}
                 delta={currentKw ? { label: '+5.4%', positive: true } : undefined}
                 icon={<VisibilityIcon sx={{ fontSize: '1.25rem' }} />}
@@ -274,23 +274,23 @@ export default function KeywordDetailPage({ params }: Props) {
               </StatCard>
 
               <StatCard
-                label="Avg. Rank"
+                label="Rank medio"
                 value={avgRank !== '—' ? `#${avgRank}` : '—'}
                 delta={currentKw?.avgRankPosition ? { label: '+0.8', positive: true } : undefined}
                 icon={<FormatListBulletedIcon sx={{ fontSize: '1.25rem' }} />}
               />
 
               <StatCard
-                label="Total Queries"
+                label="Query totali"
                 value={totalQueries.toLocaleString()}
                 delta={{ label: '+12%', positive: true }}
                 icon={<LayersIcon sx={{ fontSize: '1.25rem' }} />}
               >
-                <Typography variant="caption" color="text.disabled">Based on LLM engines</Typography>
+                <Typography variant="caption" color="text.disabled">Basato sui motori LLM</Typography>
               </StatCard>
 
               <StatCard
-                label="Sentiment Index"
+                label="Indice sentiment"
                 value={sentiment?.label ?? '—'}
                 delta={{ label: '-2%', positive: false }}
                 icon={<SentimentSatisfiedAltIcon sx={{ fontSize: '1.25rem' }} />}
@@ -312,21 +312,21 @@ export default function KeywordDetailPage({ params }: Props) {
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
             <Box>
-              <Typography variant="h3" fontWeight={700}>Visibility over Time</Typography>
+              <Typography variant="h3" fontWeight={700}>Storico visibilità</Typography>
               <Typography variant="caption" color="text.secondary">
-                Historical performance across the last {completedRuns.length} analysis runs
+                Andamento nelle ultime {completedRuns.length} run di analisi
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', gap: 0.5 }}>
-              {['Daily', 'Weekly'].map((label) => (
+              {['Giornaliero', 'Settimanale'].map((label) => (
                 <Chip
                   key={label}
                   label={label}
                   size="small"
-                  variant={label === 'Weekly' ? 'filled' : 'outlined'}
+                  variant={label === 'Settimanale' ? 'filled' : 'outlined'}
                   sx={{
                     fontWeight: 600, fontSize: '0.75rem',
-                    ...(label === 'Weekly' ? { bgcolor: 'primary.main', color: 'white' } : { borderColor: 'divider', color: 'text.secondary' }),
+                    ...(label === 'Settimanale' ? { bgcolor: 'primary.main', color: 'white' } : { borderColor: 'divider', color: 'text.secondary' }),
                   }}
                 />
               ))}
@@ -350,7 +350,7 @@ export default function KeywordDetailPage({ params }: Props) {
               }]}
               series={[{
                 data: chartData.map((p) => p.y as number),
-                label: 'Visibility %',
+                label: 'Visibilità %',
                 color: '#ec5b13',
                 area: true,
                 showMark: true,
@@ -374,7 +374,7 @@ export default function KeywordDetailPage({ params }: Props) {
         {/* Brand Presence */}
         <Card>
           <CardContent>
-            <Typography variant="h3" fontWeight={700} mb={2.5}>Brand Presence</Typography>
+            <Typography variant="h3" fontWeight={700} mb={2.5}>Presenza brand</Typography>
             {rankLoading
               ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} variant="text" height={36} sx={{ mb: 0.5 }} />)
               : brandPresence.length === 0
@@ -388,7 +388,7 @@ export default function KeywordDetailPage({ params }: Props) {
               onClick={() => router.push(`/domains/${clientKey}/runs/${runId}/results/ranking`)}
               sx={{ mt: 1, color: 'primary.main', fontWeight: 600, px: 0 }}
             >
-              View Competitive Landscape →
+              Vedi panorama competitivo →
             </Button>
           </CardContent>
         </Card>
@@ -397,9 +397,9 @@ export default function KeywordDetailPage({ params }: Props) {
         <Card>
           <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-              <Typography variant="h3" fontWeight={700}>Persona Insights</Typography>
+              <Typography variant="h3" fontWeight={700}>Analisi per persona</Typography>
               <Typography variant="caption" color="text.disabled">
-                {personas.length > 0 ? `Across ${personas.length} target segments` : ''}
+                {personas.length > 0 ? `Su ${personas.length} segmenti target` : ''}
               </Typography>
             </Box>
 
@@ -447,7 +447,7 @@ export default function KeywordDetailPage({ params }: Props) {
                             {delta.label}
                           </Typography>
                         </Box>
-                        <Typography variant="caption" color="text.disabled">vs Previous Run</Typography>
+                        <Typography variant="caption" color="text.disabled">vs run precedente</Typography>
                       </Box>
                     )
                   })}
@@ -460,7 +460,7 @@ export default function KeywordDetailPage({ params }: Props) {
                     icon={<LightbulbIcon fontSize="small" />}
                     sx={{ fontSize: '0.75rem', '& .MuiAlert-message': { fontSize: '0.75rem' } }}
                   >
-                    <strong>STRATEGY INSIGHT:</strong> Visibilità significativamente bassa per alcune persona.
+                    <strong>INSIGHT STRATEGICO:</strong> Visibilità significativamente bassa per alcune persona.
                     Considera di ottimizzare i contenuti per query tecniche e operative.
                   </Alert>
                 )}
@@ -475,15 +475,15 @@ export default function KeywordDetailPage({ params }: Props) {
         <CardContent sx={{ pb: '16px !important' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Box>
-              <Typography variant="h3" fontWeight={700}>SERP / LLM Response Analysis</Typography>
-              <Typography variant="caption" color="text.disabled">Derived from persona query breakdown</Typography>
+              <Typography variant="h3" fontWeight={700}>Analisi risposte SERP / LLM</Typography>
+              <Typography variant="caption" color="text.disabled">Derivato dalla suddivisione query per persona</Typography>
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button variant="outlined" size="small" sx={{ borderColor: 'divider', color: 'text.secondary', fontWeight: 500 }}>
-                Filter Engines
+                Filtra motori
               </Button>
               <Button variant="outlined" size="small" sx={{ borderColor: 'divider', color: 'text.secondary', fontWeight: 500 }}>
-                Sort by Visibility
+                Ordina per visibilità
               </Button>
             </Box>
           </Box>
@@ -492,12 +492,12 @@ export default function KeywordDetailPage({ params }: Props) {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Query Variant</TableCell>
+                  <TableCell>Variante query</TableCell>
                   <TableCell>Engine</TableCell>
-                  <TableCell align="center">Visibility</TableCell>
+                  <TableCell align="center">Visibilità</TableCell>
                   <TableCell align="center">Rank</TableCell>
                   <TableCell>LLM Sentiment</TableCell>
-                  <TableCell align="right">Actions</TableCell>
+                  <TableCell align="right">Azioni</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -549,7 +549,7 @@ export default function KeywordDetailPage({ params }: Props) {
                         </TableCell>
                         <TableCell align="right">
                           <Button variant="text" size="small" sx={{ color: 'primary.main', fontWeight: 700, fontSize: '0.75rem', minWidth: 0 }}>
-                            Full Response
+                            Risposta completa
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -560,7 +560,7 @@ export default function KeywordDetailPage({ params }: Props) {
 
           {personas.length > 0 && (
             <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1.5 }}>
-              Showing {serpRows.length} of {personas.length} query results
+              Mostrando {serpRows.length} di {personas.length} risultati query
             </Typography>
           )}
         </CardContent>
@@ -574,7 +574,7 @@ export default function KeywordDetailPage({ params }: Props) {
           onClick={() => router.push(`/domains/${clientKey}/runs/${runId}/results/keywords`)}
           sx={{ color: 'text.secondary', fontWeight: 500 }}
         >
-          Back to Keywords Overview
+          Torna alla panoramica keyword
         </Button>
         <Box sx={{ display: 'flex', gap: 1.5 }}>
           <Button
@@ -582,14 +582,14 @@ export default function KeywordDetailPage({ params }: Props) {
             startIcon={<CompareArrowsIcon />}
             onClick={() => router.push(`/domains/${clientKey}/runs/compare`)}
           >
-            Compare Keywords
+            Confronta keyword
           </Button>
           <Button
             variant="contained"
             startIcon={<ReplayIcon />}
             onClick={() => router.push(`/domains/${clientKey}/runs/new`)}
           >
-            Schedule Re-Run
+            Avvia nuova run
           </Button>
         </Box>
       </Box>

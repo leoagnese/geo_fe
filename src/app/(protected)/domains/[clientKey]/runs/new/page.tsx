@@ -231,7 +231,7 @@ export default function NewRunPage({ params }: Props) {
         {/* ═══════════════════════════════════════════════════════
             1. ACTIVE RUN SETTINGS
         ═══════════════════════════════════════════════════════ */}
-        <ConfigSection label="1" title="Active Run Settings">
+        <ConfigSection label="1" title="Impostazioni run">
 
           {/* Client key — read-only */}
           <FieldRow label="Client Key">
@@ -246,7 +246,7 @@ export default function NewRunPage({ params }: Props) {
           </FieldRow>
 
           {/* Profile selection */}
-          <FieldRow label="Profile Selection">
+          <FieldRow label="Selezione profilo">
             {profilesError ? (
               <Alert severity="error" action={
                 <Button color="inherit" size="small" onClick={() => void refetchProfiles()}>Riprova</Button>
@@ -280,7 +280,7 @@ export default function NewRunPage({ params }: Props) {
           </FieldRow>
 
           {/* Run iterations */}
-          <FieldRow label="Run Iterations">
+          <FieldRow label="Iterazioni">
             <TextField
               label="Iterazioni"
               type="number"
@@ -298,7 +298,7 @@ export default function NewRunPage({ params }: Props) {
         {/* ═══════════════════════════════════════════════════════
             2. QUERY MANAGEMENT
         ═══════════════════════════════════════════════════════ */}
-        <ConfigSection label="2" title="Query Management">
+        <ConfigSection label="2" title="Gestione query">
 
           {/* Global keywords */}
           <FieldRow label="Keywords">
@@ -387,7 +387,7 @@ export default function NewRunPage({ params }: Props) {
 
           {/* Country selection */}
           <FieldRow
-            label="Country"
+            label="Paese / Lingua"
             badge={`${activeLocales.length} ${activeLocales.length === 1 ? 'paese' : 'paesi'}`}
           >
             <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
@@ -435,7 +435,7 @@ export default function NewRunPage({ params }: Props) {
         {/* ═══════════════════════════════════════════════════════
             3. PROFILE & PROVIDER MANAGEMENT
         ═══════════════════════════════════════════════════════ */}
-        <ConfigSection label="3" title="Profile & Provider Management">
+        <ConfigSection label="3" title="Gestione profilo & provider">
           {!selectedProfile ? (
             <Box sx={{ py: 2, textAlign: 'center' }}>
               <Typography variant="body2" color="text.disabled">
@@ -445,7 +445,7 @@ export default function NewRunPage({ params }: Props) {
           ) : (
             <>
               {/* Provider + run model */}
-              <FieldRow label="Primary LLM Provider">
+              <FieldRow label="Provider LLM">
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                   <Chip
                     label={PROVIDER_LABELS[selectedProfile.llmProvider] ?? selectedProfile.llmProvider}
@@ -459,7 +459,7 @@ export default function NewRunPage({ params }: Props) {
                 </Box>
               </FieldRow>
 
-              <FieldRow label="Model Version">
+              <FieldRow label="Versione modello">
                 <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                   {[
                     ['Run model', selectedProfile.runModel],
@@ -476,7 +476,7 @@ export default function NewRunPage({ params }: Props) {
 
               {/* Response config (if present) */}
               {selectedProfile.responsesCfg && Object.keys(selectedProfile.responsesCfg).length > 0 && (
-                <FieldRow label="Response Config">
+                <FieldRow label="Configurazione risposte">
                   <Box sx={{
                     display: 'flex', gap: 1, flexWrap: 'wrap',
                     p: 1.5,
@@ -503,7 +503,7 @@ export default function NewRunPage({ params }: Props) {
         {/* ═══════════════════════════════════════════════════════
             4. TARGET SETTINGS & KEYWORDS
         ═══════════════════════════════════════════════════════ */}
-        <ConfigSection label="4" title="Target Settings & Keywords">
+        <ConfigSection label="4" title="Impostazioni target & keyword">
           {activeLocales.length === 0 ? (
             <Box sx={{ py: 2, textAlign: 'center' }}>
               <Typography variant="body2" color="text.disabled">
@@ -533,7 +533,7 @@ export default function NewRunPage({ params }: Props) {
                   <Box key={code} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
 
                     {/* Keyword list manager */}
-                    <FieldRow label="Keyword List">
+                    <FieldRow label="Lista keyword">
                       <Controller
                         name={`langs.${code}.keywords`}
                         control={control}
@@ -555,7 +555,7 @@ export default function NewRunPage({ params }: Props) {
                     </FieldRow>
 
                     {/* Max questions per run */}
-                    <FieldRow label="Max Questions / Run">
+                    <FieldRow label="Domande max / run">
                       <Controller
                         name={`langs.${code}.questionsCount`}
                         control={control}
@@ -576,7 +576,7 @@ export default function NewRunPage({ params }: Props) {
                     </FieldRow>
 
                     {/* Location focus */}
-                    <FieldRow label="Location Focus">
+                    <FieldRow label="Focus geografico">
                       <Controller
                         name={`langs.${code}.locationFocus`}
                         control={control}

@@ -203,7 +203,7 @@ export default function AppShell({ children }: AppShellProps) {
           <IconButton
             onClick={(e) => setAnchorEl(e.currentTarget)}
             size="small"
-            aria-label="account menu"
+            aria-label="menu account"
           >
             <Avatar
               sx={{

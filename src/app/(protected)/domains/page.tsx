@@ -179,7 +179,7 @@ export default function DomainsPage() {
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3 }}>
         <Box>
           <Typography variant="h1" sx={{ fontWeight: 800, mb: 0.5 }}>
-            Projects &amp; Domains
+            Progetti &amp; Domini
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Gestisci i domini monitorati e le attività del workspace.
@@ -191,7 +191,7 @@ export default function DomainsPage() {
           onClick={() => router.push('/domains/new')}
           sx={{ flexShrink: 0 }}
         >
-          Create New Project
+          Crea nuovo progetto
         </Button>
       </Box>
 
@@ -199,7 +199,7 @@ export default function DomainsPage() {
       <Card sx={{ mb: 2, p: 2 }}>
         <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
           <TextField
-            placeholder="Search domains (e.g. turismotorino.org)..."
+            placeholder="Cerca domini (es. turismotorino.org)..."
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
             size="small"
@@ -225,7 +225,7 @@ export default function DomainsPage() {
             size="small"
             sx={{ color: 'text.secondary', borderColor: 'divider', fontWeight: 500 }}
           >
-            Status: Active
+            Stato: Attivo
           </Button>
         </Box>
 
@@ -245,7 +245,7 @@ export default function DomainsPage() {
               sx={{ color: 'primary.main', fontWeight: 600, fontSize: '0.75rem', p: 0, minWidth: 0 }}
               onClick={() => setActiveFilters([])}
             >
-              Clear all filters
+              Cancella filtri
             </Button>
           </Box>
         )}
@@ -272,12 +272,12 @@ export default function DomainsPage() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Target Domain</TableCell>
+                <TableCell>Dominio target</TableCell>
                 <TableCell>Client Key</TableCell>
-                <TableCell align="center">Active Runs</TableCell>
-                <TableCell>Last Analysis</TableCell>
-                <TableCell>Visibility Score</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <TableCell align="center">Run attive</TableCell>
+                <TableCell>Ultima analisi</TableCell>
+                <TableCell>Score visibilità</TableCell>
+                <TableCell align="right">Azioni</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -365,14 +365,14 @@ export default function DomainsPage() {
                         {lastRun ? (
                           <Box>
                             <Typography variant="body2" fontWeight={500}>
-                              {new Date(lastRun).toLocaleDateString('en-US', {
+                              {new Date(lastRun).toLocaleDateString('it-IT', {
                                 month: 'short',
                                 day: 'numeric',
                                 year: 'numeric',
                               })}
                             </Typography>
                             <Typography variant="caption" color="text.disabled">
-                              {new Date(lastRun).toLocaleTimeString('en-US', {
+                              {new Date(lastRun).toLocaleTimeString('it-IT', {
                                 hour: '2-digit',
                                 minute: '2-digit',
                               })}
@@ -402,7 +402,7 @@ export default function DomainsPage() {
                             '&:hover': { bgcolor: 'rgba(236,91,19,0.06)' },
                           }}
                         >
-                          View Details
+                          Visualizza
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -426,8 +426,7 @@ export default function DomainsPage() {
             }}
           >
             <Typography variant="caption" color="text.secondary">
-              Showing {(page - 1) * PAGE_SIZE + 1} to{' '}
-              {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} results
+              Mostrando {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filtered.length)} di {filtered.length} risultati
             </Typography>
             <Pagination
               count={totalPages}
@@ -448,22 +447,22 @@ export default function DomainsPage() {
       {/* Bottom KPI summary cards */}
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2 }}>
         <StatCard
-          label="Total Domains"
+          label="Domini totali"
           value={isLoading ? '—' : String(totalDomains)}
           icon={<PublicIcon sx={{ fontSize: '1.5rem' }} />}
         />
         <StatCard
-          label="Active Runs"
+          label="Run attive"
           value={isLoading ? '—' : String(totalActiveRuns)}
           icon={<RocketLaunchIcon sx={{ fontSize: '1.5rem' }} />}
         />
         <StatCard
-          label="Avg. Visibility"
+          label="Visibilità media"
           value="—"
           icon={<VisibilityIcon sx={{ fontSize: '1.5rem' }} />}
         />
         <StatCard
-          label="New Clients (MoM)"
+          label="Nuovi clienti (MoM)"
           value="+12%"
           delta={{ label: '+12%', positive: true }}
           icon={<TrendingUpIcon sx={{ fontSize: '1.5rem' }} />}

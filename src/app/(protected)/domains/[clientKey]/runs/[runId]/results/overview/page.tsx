@@ -114,7 +114,7 @@ function SovRow({
           textOverflow: 'ellipsis',
         }}
       >
-        {label}{isTarget ? ' (You)' : ''}
+        {label}{isTarget ? ' (Tu)' : ''}
       </Typography>
       <Box
         sx={{
@@ -293,19 +293,19 @@ export default function OverviewPage({ params }: OverviewPageProps) {
                 sx={{ bgcolor: '#eff6ff' }}
               />
               <StatCard
-                label="Locales"
+                label="Lingue"
                 value={kpisLoading ? '—' : localesLabel}
                 icon={<LanguageIcon sx={{ fontSize: '1.5rem', color: '#16a34a' }} />}
                 sx={{ bgcolor: '#f0fdf4' }}
               />
               <StatCard
                 label="Keywords"
-                value={kwLoading ? '—' : `${kwCount} Managed`}
+                value={kwLoading ? '—' : `${kwCount} gestite`}
                 icon={<VpnKeyIcon sx={{ fontSize: '1.5rem', color: '#d97706' }} />}
                 sx={{ bgcolor: '#fffbeb' }}
               />
               <StatCard
-                label="Avg Visibility"
+                label="Visibilità media"
                 value={kpisLoading ? '—' : visibilityLabel}
                 delta={kpis ? { label: `${kpis.aiVisibilityScore.toFixed(1)}%`, positive: kpis.aiVisibilityScore >= 50 } : undefined}
                 icon={<VisibilityIcon sx={{ fontSize: '1.5rem', color: '#7c3aed' }} />}
@@ -330,10 +330,10 @@ export default function OverviewPage({ params }: OverviewPageProps) {
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
               <Box>
                 <Typography variant="h3" sx={{ fontWeight: 700, mb: 0.25 }}>
-                  Visibility vs. Average Rank
+                  Visibilità vs. Rank medio
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Brand visibility score vs ranking position across LLM engines
+                  Score di visibilità brand vs posizione di rank sui motori LLM
                 </Typography>
               </Box>
             </Box>
@@ -349,20 +349,20 @@ export default function OverviewPage({ params }: OverviewPageProps) {
                 height={280}
                 series={[
                   {
-                    label: 'Your Brand',
+                    label: 'Il tuo brand',
                     data: scatterData.target,
                     color: geoColors.status.error,
                     markerSize: 10,
                   },
                   {
-                    label: 'Competitors',
+                    label: 'Competitor',
                     data: scatterData.competitors,
                     color: geoColors.status.done,
                     markerSize: 7,
                   },
                 ]}
-                xAxis={[{ label: 'Average Rank', min: 0 }]}
-                yAxis={[{ label: 'Visibility (%)' }]}
+                xAxis={[{ label: 'Rank medio', min: 0 }]}
+                yAxis={[{ label: 'Visibilità (%)' }]}
                 slotProps={{ legend: { position: { vertical: 'bottom', horizontal: 'center' } } }}
               />
             )}
@@ -374,7 +374,7 @@ export default function OverviewPage({ params }: OverviewPageProps) {
           <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h3" sx={{ fontWeight: 700 }}>
-                Top 5 Brands by Share of Voice
+                Top 5 Brand per Share of Voice
               </Typography>
             </Box>
 
@@ -407,10 +407,10 @@ export default function OverviewPage({ params }: OverviewPageProps) {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Box>
               <Typography variant="h3" sx={{ fontWeight: 700 }}>
-                Top Performing Keywords
+                Keyword più performanti
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Based on visibility score and mention frequency
+                In base al score di visibilità e alla frequenza di menzione
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
@@ -420,7 +420,7 @@ export default function OverviewPage({ params }: OverviewPageProps) {
                 startIcon={<FilterListIcon />}
                 sx={{ color: 'text.secondary', fontWeight: 500 }}
               >
-                Filter
+                Filtra
               </Button>
               <Button
                 variant="text"
@@ -430,7 +430,7 @@ export default function OverviewPage({ params }: OverviewPageProps) {
                 }
                 sx={{ color: 'primary.main', fontWeight: 700 }}
               >
-                View All
+                Vedi tutte
               </Button>
             </Box>
           </Box>
@@ -440,10 +440,10 @@ export default function OverviewPage({ params }: OverviewPageProps) {
               <TableHead>
                 <TableRow>
                   <TableCell>Keyword</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="right">Mentions</TableCell>
-                  <TableCell align="center">Visibility Trend</TableCell>
-                  <TableCell align="right">Avg Rank</TableCell>
+                  <TableCell>Stato</TableCell>
+                  <TableCell align="right">Menzioni</TableCell>
+                  <TableCell align="center">Andamento visibilità</TableCell>
+                  <TableCell align="right">Rank medio</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -483,7 +483,7 @@ export default function OverviewPage({ params }: OverviewPageProps) {
                           {kw.keyword}
                         </Typography>
                         <Typography variant="caption" color="text.disabled">
-                          {kw.queriesExecuted} queries
+                          {kw.queriesExecuted} query
                         </Typography>
                       </TableCell>
                       <TableCell>

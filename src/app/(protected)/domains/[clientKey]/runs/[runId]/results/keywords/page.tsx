@@ -183,7 +183,7 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
 
       {/* ── Header ── */}
       <Box>
-        <Typography variant="h2" fontWeight={800} mb={0.5}>Keyword Performance</Typography>
+        <Typography variant="h2" fontWeight={800} mb={0.5}>Performance keyword</Typography>
         <Typography variant="body2" color="text.secondary">
           Risk matrix · Analisi visibilità per keyword estratte da questa run
         </Typography>
@@ -206,14 +206,14 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
         ) : (
           <>
             <StatCard
-              label="Total Keywords"
+              label="Keyword totali"
               value={stats.total.toString()}
               icon={<SearchIcon sx={{ fontSize: '1.25rem' }} />}
             >
               <Typography variant="caption" color="text.disabled">Analizzate in questa run</Typography>
             </StatCard>
             <StatCard
-              label="Avg. Visibility"
+              label="Visibilità media"
               value={`${(stats.avgVis * 100).toFixed(1)}%`}
               delta={{ label: '+3.2%', positive: true }}
             >
@@ -222,7 +222,7 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
               </Box>
             </StatCard>
             <StatCard
-              label="Underperforming"
+              label="Sottoperformanti"
               value={stats.critical.toString()}
               delta={stats.critical > 0 ? { label: 'Richiede attenzione', positive: false } : undefined}
               icon={<WarningAmberIcon sx={{ fontSize: '1.25rem', color: '#dc2626' }} />}
@@ -242,7 +242,7 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
         <Card>
           <CardContent>
             <Box sx={{ mb: 2 }}>
-              <Typography variant="h3" fontWeight={700}>Risk Matrix</Typography>
+              <Typography variant="h3" fontWeight={700}>Matrice di rischio</Typography>
               <Typography variant="caption" color="text.disabled">
                 Visibility % (asse X) vs. AI Rank (asse Y, invertito: più alto = rank migliore)
               </Typography>
@@ -257,7 +257,7 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
             ) : (
               <ScatterChart
                 series={scatterSeries}
-                xAxis={[{ min: 0, max: 100, label: 'Visibility %', tickNumber: 5 }]}
+                xAxis={[{ min: 0, max: 100, label: 'Visibilità %', tickNumber: 5 }]}
                 yAxis={[{ min: 0, max: 10, label: 'Rank (inv.)', tickNumber: 5 }]}
                 height={300}
                 margin={{ left: 50, right: 20, top: 20, bottom: 50 }}
@@ -334,7 +334,7 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
       <Card>
         <CardContent sx={{ pb: '16px !important' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h3" fontWeight={700}>Keyword Performance Table</Typography>
+            <Typography variant="h3" fontWeight={700}>Tabella performance keyword</Typography>
             <Typography variant="caption" color="text.disabled">
               {allRows.length} keyword totali
             </Typography>
@@ -352,12 +352,12 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
                 <TableHead>
                   <TableRow>
                     <TableCell>Keyword</TableCell>
-                    <TableCell align="center">Status</TableCell>
-                    <TableCell align="center">Visibility</TableCell>
-                    <TableCell align="center">Avg Rank</TableCell>
+                    <TableCell align="center">Stato</TableCell>
+                    <TableCell align="center">Visibilità</TableCell>
+                    <TableCell align="center">Rank medio</TableCell>
                     <TableCell align="center">Link Rate</TableCell>
-                    <TableCell align="center">Mentions</TableCell>
-                    <TableCell align="right">Detail</TableCell>
+                    <TableCell align="center">Menzioni</TableCell>
+                    <TableCell align="right">Dettaglio</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -421,7 +421,7 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
                             style={{ textDecoration: 'none' }}
                           >
                             <Button variant="text" size="small" sx={{ color: 'primary.main', fontWeight: 700, fontSize: '0.75rem', minWidth: 0 }}>
-                              Detail →
+                              Dettaglio →
                             </Button>
                           </Link>
                         </TableCell>
@@ -464,8 +464,8 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
                   <TableRow>
                     <TableCell>Persona</TableCell>
                     <TableCell align="center">Query</TableCell>
-                    <TableCell align="center">Visibility %</TableCell>
-                    <TableCell align="center">Avg Rank</TableCell>
+                    <TableCell align="center">Visibilità %</TableCell>
+                    <TableCell align="center">Rank medio</TableCell>
                     <TableCell align="center">Menzioni</TableCell>
                   </TableRow>
                 </TableHead>
