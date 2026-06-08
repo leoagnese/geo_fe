@@ -565,7 +565,7 @@ export async function updateAdminUser(
   })
 }
 
-/** E-023 — Admin: delete user (Keycloak + MongoDB). 204 on success. */
+/** E-023 — Admin: delete user. 204 on success. */
 export async function deleteAdminUser(
   token: string,
   userId: string,

@@ -30,7 +30,7 @@ Questa repo è il **consumer FE** del KB AionSoft (modello multi-repo G, ADR-001
 |---|---|
 | Framework | Next.js 14 (App Router) |
 | UI | MUI v6 + design tokens da `L1_design/design-tokens.md` |
-| Auth | next-auth v5 + Keycloak OIDC (Authorization Code Flow) |
+| Auth | next-auth v5 + CredentialsProvider (JWT locale HS256) |
 | State / fetch | TanStack Query (React Query) |
 | Form | react-hook-form + zod |
 | Test | Jest + React Testing Library |
@@ -64,7 +64,7 @@ src/
 
 - **Routing:** App Router con route groups `(auth)` e `(protected)`. Nessun Pages Router.
 - **API calls:** sempre via `src/lib/api-client.ts`. Non chiamare `fetch` direttamente nei componenti.
-- **Auth:** l'`access_token` Keycloak è esposto in sessione next-auth e va passato come `Authorization: Bearer` a ogni chiamata BE.
+- **Auth:** l'`access_token` JWT (HS256) è esposto in sessione next-auth (tramite CredentialsProvider → POST /api/v1/auth/login) e va passato come `Authorization: Bearer` a ogni chiamata BE.
 - **Design token:** usare `geoColors` e le MUI theme extensions da `lib/theme.ts`. Non usare colori hardcoded.
 - **Traceability:** ogni pagina implementa uno o più `SC-xxx`. I screen ID sono nei commenti di testa dei file `page.tsx`.
 - **Polling:** SC-021 fa polling ogni 10s su run in stato `running`. Usare `useQuery({ refetchInterval })` — non `setInterval` manuale.
@@ -89,9 +89,6 @@ Vedi `.env.local.example`. Variabili principali:
 ```
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=<random>
-KEYCLOAK_ISSUER=http://localhost:8080/realms/<realm>
-KEYCLOAK_CLIENT_ID=geo-fe
-KEYCLOAK_CLIENT_SECRET=<secret>
 NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/api/v1
 ```
 

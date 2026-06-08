@@ -1,12 +1,3 @@
-/**
- * NextAuth v5 — Keycloak via Credentials provider (ROPC flow).
- *
- * The login form lives on the GeoTool FE (SC-001). Credentials are exchanged
- * directly with Keycloak's token endpoint — no redirect to localhost:8080.
- *
- * @implements US-001
- * @validates AC-001, AC-002, AC-003
- */
 import NextAuth from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import type { JWT } from 'next-auth/jwt'
@@ -26,7 +17,6 @@ declare module 'next-auth' {
   }
   interface User {
     accessToken: string
-    refreshToken: string
     accessTokenExpires: number
     role: 'analyst' | 'admin'
   }
@@ -35,120 +25,70 @@ declare module 'next-auth' {
 declare module 'next-auth/jwt' {
   interface JWT {
     accessToken?: string
-    refreshToken?: string
     accessTokenExpires?: number
     role?: 'analyst' | 'admin'
     error?: string
   }
 }
 
-interface KcPayload {
+interface LocalJwtPayload {
   sub: string
   email?: string
-  preferred_username?: string
   realm_access?: { roles?: string[] }
+  exp: number
 }
 
-function extractRole(payload: KcPayload): 'analyst' | 'admin' {
-  const roles = payload.realm_access?.roles ?? []
-  return roles.includes('admin') ? 'admin' : 'analyst'
-}
-
-function decodeJwt(token: string): KcPayload {
+function decodeJwt(token: string): LocalJwtPayload {
   return JSON.parse(
     Buffer.from(token.split('.')[1], 'base64url').toString(),
-  ) as KcPayload
+  ) as LocalJwtPayload
 }
 
-async function refreshAccessToken(token: JWT): Promise<JWT> {
-  try {
-    const res = await fetch(
-      `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          client_id: process.env.KEYCLOAK_CLIENT_ID!,
-          client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
-          grant_type: 'refresh_token',
-          refresh_token: token.refreshToken ?? '',
-        }),
-      },
-    )
-    const data = (await res.json()) as {
-      access_token: string
-      refresh_token?: string
-      expires_in: number
-    }
-    if (!res.ok) throw data
-
-    const payload = decodeJwt(data.access_token)
-    return {
-      ...token,
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token ?? token.refreshToken,
-      accessTokenExpires: Date.now() + data.expires_in * 1000,
-      role: extractRole(payload),
-      error: undefined,
-    }
-  } catch {
-    return { ...token, error: 'RefreshAccessTokenError' }
-  }
-}
+const BE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000/api/v1'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET,
   trustHost: true,
-  // Session capped to Keycloak ssoSessionMaxLifespan (10h). Beyond the
-  // Keycloak refresh-token life the session can't be renewed anyway, so the
-  // cookie must not outlive it. Idle expiry (1h) is caught via session.error.
-  session: { strategy: 'jwt', maxAge: 36000 },
+  session: { strategy: 'jwt', maxAge: 28800 },
   providers: [
     CredentialsProvider({
       name: 'credentials',
       credentials: {
-        username: { label: 'Username o email', type: 'text' },
+        username: { label: 'Email', type: 'text' },
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) return null
 
         try {
-          const res = await fetch(
-            `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: new URLSearchParams({
-                client_id: process.env.KEYCLOAK_CLIENT_ID!,
-                client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
-                grant_type: 'password',
-                username: credentials.username as string,
-                password: credentials.password as string,
-              }),
-            },
-          )
+          const res = await fetch(`${BE_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: credentials.username,
+              password: credentials.password,
+            }),
+          })
 
           if (!res.ok) return null
 
-          const data = (await res.json()) as {
-            access_token: string
-            refresh_token: string
-            expires_in: number
-          }
+          const body = (await res.json()) as { data?: { access_token: string }; access_token?: string }
+          const accessToken = body.data?.access_token ?? body.access_token
+          if (!accessToken) return null
 
-          const payload = decodeJwt(data.access_token)
+          const payload = decodeJwt(accessToken)
           const roles = payload.realm_access?.roles ?? []
+          const role = roles.includes('admin') ? 'admin' : 'analyst'
+
           if (!roles.includes('admin') && !roles.includes('analyst')) return null
 
           return {
             id: payload.sub,
             email: payload.email ?? (credentials.username as string),
-            name: payload.preferred_username as string ?? (credentials.username as string),
-            accessToken: data.access_token,
-            refreshToken: data.refresh_token,
-            accessTokenExpires: Date.now() + data.expires_in * 1000,
-            role: extractRole(payload),
+            name: payload.email ?? (credentials.username as string),
+            accessToken,
+            accessTokenExpires: payload.exp * 1000,
+            role,
           }
         } catch {
           return null
@@ -159,7 +99,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
   callbacks: {
     authorized({ auth: session }) {
-      return !!session && session.error !== 'RefreshAccessTokenError'
+      return !!session
     },
 
     async jwt({ token, user }) {
@@ -167,13 +107,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return {
           ...token,
           accessToken: user.accessToken,
-          refreshToken: user.refreshToken,
           accessTokenExpires: user.accessTokenExpires,
           role: user.role,
         }
       }
-      if (Date.now() < (token.accessTokenExpires ?? 0)) return token
-      return refreshAccessToken(token)
+      return token
     },
 
     async session({ session, token }) {

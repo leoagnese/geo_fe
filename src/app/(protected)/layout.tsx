@@ -17,8 +17,6 @@ import AppShell from '@/components/AppShell'
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
-  // Redirect when there's no session OR the Keycloak token can no longer be
-  // refreshed — otherwise the shell renders but every BE call 401s silently.
   if (!session || session.error === 'RefreshAccessTokenError') redirect('/login')
   return <AppShell>{children}</AppShell>
 }

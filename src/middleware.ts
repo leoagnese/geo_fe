@@ -2,7 +2,7 @@
  * NextAuth v5 middleware — protects all routes except /login and /api/auth/*.
  *
  * Unauthenticated users accessing protected routes are redirected to /login
- * where the Keycloak OIDC flow begins. AC-001.
+ * where the login form is. AC-001.
  *
  * AUTH_DISABLED=true skips auth entirely (dev/UI preview only).
  *
