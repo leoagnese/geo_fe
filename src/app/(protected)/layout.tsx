@@ -17,6 +17,6 @@ import AppShell from '@/components/AppShell'
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
-  if (!session || session.error === 'RefreshAccessTokenError') redirect('/login')
+  if (!session || session.error === 'RefreshAccessTokenError' || session.error === 'AccessTokenExpired') redirect('/login')
   return <AppShell>{children}</AppShell>
 }

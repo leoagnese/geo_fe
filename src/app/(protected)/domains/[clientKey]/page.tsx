@@ -50,6 +50,7 @@ import Snackbar from '@mui/material/Snackbar'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
+import GroupIcon from '@mui/icons-material/Group'
 import StatusChip from '@/components/StatusChip'
 import { getDomain, getRuns, deleteDomain, ApiError } from '@/lib/api-client'
 import type { RunListItem } from '@/lib/api-client'
@@ -162,7 +163,7 @@ export default function DomainPage({ params }: DomainPageProps) {
           <Typography variant="h1">{domain?.brand ?? clientKey}</Typography>
         )}
 
-        <Box sx={{ display: 'flex', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
           <Button
             variant="outlined"
             color="error"
@@ -178,6 +179,13 @@ export default function DomainPage({ params }: DomainPageProps) {
             onClick={() => router.push(`/domains/${clientKey}/edit`)}
           >
             Modifica
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<GroupIcon />}
+            onClick={() => router.push(`/domains/${clientKey}/personas`)}
+          >
+            Gestisci Personas
           </Button>
           <Button
             variant="contained"

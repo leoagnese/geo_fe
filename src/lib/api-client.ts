@@ -62,6 +62,9 @@ export interface Domain {
   aliases?: string[]
   settori?: string[]
   keywords?: string[]
+  personas?: Persona[]
+  personaGroups?: PersonaGroup[]
+  ownerId?: string
   createdAt: string
   updatedAt?: string
 }
@@ -88,16 +91,34 @@ export interface UpdateDomainDto {
 
 export type RunStatus = 'queued' | 'running' | 'done' | 'error' | 'cancelled'
 
+export interface RunPersona {
+  id: string
+  name: string
+  description: string
+  context: string
+  searchStyle?: string
+}
+
 export interface Run {
   runId: string
   clientKey: string
   profileKey: string
+  targetDomain?: string
+  brand?: string
   status: RunStatus
   runIterations: number
   locales?: string[]
   keywordsOverride?: string[]
+  keywordsByLang?: Record<string, string[]>
+  questionsCountByLang?: Record<string, number>
+  locationFocusByLang?: Record<string, string>
+  activePersonaIds?: string[]
+  personas?: RunPersona[]
+  topics?: Array<{ id: string; label: string; keywords?: string[] }>
+  gotQueries?: boolean
   testMode: boolean
   debugMode: boolean
+  profileSnapshot?: Record<string, unknown>
   executionId?: string | null
   plannedQueries: number
   doneQueries: number
@@ -110,6 +131,12 @@ export interface Run {
   createdAt: string
 }
 
+export interface RunTopic {
+  id: string
+  label: string
+  keywords?: string[]
+}
+
 export interface CreateRunDto {
   profileKey: string
   runIterations: number
@@ -119,6 +146,7 @@ export interface CreateRunDto {
   questionsCountByLang?: Record<string, number>
   activePersonaIds?: string[]
   locationFocusByLang?: Record<string, string>
+  topics?: Array<{ id: string; label: string; keywords?: string[] }>
   testMode?: boolean
   debugMode?: boolean
 }
@@ -128,7 +156,13 @@ export interface Persona {
   name: string
   description: string
   context: string
-  searchStyle: string
+  searchStyle?: string
+}
+
+export interface PersonaGroup {
+  id: string
+  name: string
+  personaIds: string[]
 }
 
 export interface RunListItem {
@@ -211,8 +245,15 @@ export interface PersonaBreakdownRow {
 
 export interface ReportFile {
   type: 'xlsx' | 'md'
-  name: string
-  driveUrl: string
+  /** Legacy Drive link (not used in current n8n workflow) */
+  driveUrl?: string
+  /** For n8n-direct uploads: original file name */
+  fileName?: string
+  /** MD files: raw markdown text */
+  content?: string
+  /** XLSX files: base64-encoded binary */
+  base64?: string
+  createdAt?: string
 }
 
 export interface ReportResult {
@@ -233,8 +274,13 @@ export interface LlmProfile {
   runModel: string
   qgenModel: string
   nerModel: string
+  reportModel?: string
+  batchSize?: number
+  qgenBatchSize?: number
   responsesCfg?: Record<string, unknown>
+  active: boolean
   createdAt: string
+  updatedAt?: string
 }
 
 export interface CreateProfileDto {
@@ -243,13 +289,22 @@ export interface CreateProfileDto {
   runModel: string
   qgenModel: string
   nerModel: string
+  reportModel?: string
+  batchSize?: number
+  qgenBatchSize?: number
   responsesCfg?: Record<string, unknown>
 }
 
 export interface UpdateProfileDto {
+  profileKey?: string
+  llmProvider?: 'openai' | 'gemini' | 'perplexity'
   runModel?: string
   qgenModel?: string
   nerModel?: string
+  reportModel?: string
+  batchSize?: number
+  qgenBatchSize?: number
+  active?: boolean
   responsesCfg?: Record<string, unknown>
 }
 
@@ -264,6 +319,7 @@ export interface UserProfile {
   role: 'analyst' | 'admin'
   active: boolean
   createdAt: string
+  updatedAt?: string
 }
 
 export interface CreateUserDto {
@@ -378,6 +434,83 @@ export async function deleteDomain(
   await apiFetch<void>(`/domains/${clientKey}`, token, { method: 'DELETE' })
 }
 
+export async function postDomainPersona(
+  token: string,
+  clientKey: string,
+  persona: { name: string; description: string; context: string; searchStyle?: string },
+): Promise<ApiSuccess<Domain>> {
+  return apiFetch<ApiSuccess<Domain>>(`/domains/${clientKey}/personas`, token, {
+    method: 'POST',
+    body: JSON.stringify(persona),
+  })
+}
+
+export async function patchDomainPersona(
+  token: string,
+  clientKey: string,
+  personaId: string,
+  update: { name?: string; description?: string; context?: string; searchStyle?: string },
+): Promise<ApiSuccess<Domain>> {
+  return apiFetch<ApiSuccess<Domain>>(`/domains/${clientKey}/personas/${encodeURIComponent(personaId)}`, token, {
+    method: 'PATCH',
+    body: JSON.stringify(update),
+  })
+}
+
+export async function postDomainPersonasBulk(
+  token: string,
+  clientKey: string,
+  personas: Array<{ name: string; description: string; context: string; searchStyle?: string }>,
+): Promise<ApiSuccess<Domain>> {
+  return apiFetch<ApiSuccess<Domain>>(`/domains/${clientKey}/personas/bulk`, token, {
+    method: 'POST',
+    body: JSON.stringify({ personas }),
+  })
+}
+
+export async function deleteDomainPersona(
+  token: string,
+  clientKey: string,
+  personaId: string,
+): Promise<void> {
+  await apiFetch<void>(`/domains/${clientKey}/personas/${encodeURIComponent(personaId)}`, token, {
+    method: 'DELETE',
+  })
+}
+
+export async function postDomainPersonaGroup(
+  token: string,
+  clientKey: string,
+  group: { name: string; personaIds: string[] },
+): Promise<ApiSuccess<Domain>> {
+  return apiFetch<ApiSuccess<Domain>>(`/domains/${clientKey}/persona-groups`, token, {
+    method: 'POST',
+    body: JSON.stringify(group),
+  })
+}
+
+export async function deleteDomainPersonaGroup(
+  token: string,
+  clientKey: string,
+  groupId: string,
+): Promise<void> {
+  await apiFetch<void>(`/domains/${clientKey}/persona-groups/${encodeURIComponent(groupId)}`, token, {
+    method: 'DELETE',
+  })
+}
+
+export async function patchDomainPersonaGroup(
+  token: string,
+  clientKey: string,
+  groupId: string,
+  update: { name?: string; personaIds?: string[] },
+): Promise<ApiSuccess<Domain>> {
+  return apiFetch<ApiSuccess<Domain>>(`/domains/${clientKey}/persona-groups/${encodeURIComponent(groupId)}`, token, {
+    method: 'PATCH',
+    body: JSON.stringify(update),
+  })
+}
+
 // ──────────────────────────────────────────────────────────────
 // Run endpoints (E-006, E-007, E-008, E-009)
 // ──────────────────────────────────────────────────────────────
@@ -482,6 +615,34 @@ export async function getRunPersonas(
   )
 }
 
+/** Add a persona to a run */
+export async function postRunPersona(
+  token: string,
+  clientKey: string,
+  runId: string,
+  persona: { id?: string; name: string; description: string; context: string; searchStyle?: string },
+): Promise<ApiSuccess<unknown>> {
+  return apiFetch<ApiSuccess<unknown>>(
+    `/domains/${clientKey}/runs/${runId}/personas`,
+    token,
+    { method: 'POST', body: JSON.stringify(persona) },
+  )
+}
+
+/** Remove a persona from a run */
+export async function deleteRunPersona(
+  token: string,
+  clientKey: string,
+  runId: string,
+  personaId: string,
+): Promise<void> {
+  await apiFetch<void>(
+    `/domains/${clientKey}/runs/${runId}/personas/${encodeURIComponent(personaId)}`,
+    token,
+    { method: 'DELETE' },
+  )
+}
+
 /** E-014 — Get report file links. serves US-017 (AC-026, AC-027) */
 export async function getRunReport(
   token: string,
@@ -492,6 +653,25 @@ export async function getRunReport(
     `/domains/${clientKey}/runs/${runId}/results/report`,
     token,
   )
+}
+
+/** Download a generated report file (md or xlsx) as a Blob. */
+export async function getRunReportBlob(
+  token: string,
+  clientKey: string,
+  runId: string,
+  type: 'md' | 'xlsx',
+): Promise<Blob> {
+  const res = await fetch(`${BASE_URL}/domains/${clientKey}/runs/${runId}/report/${type}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({
+      error: { code: 'DOWNLOAD_FAILED', message: 'Download failed' },
+    }))) as ApiErrorBody
+    throw new ApiError(res.status, body)
+  }
+  return res.blob()
 }
 
 // ──────────────────────────────────────────────────────────────

@@ -11,7 +11,7 @@
  */
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
@@ -29,7 +29,9 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import CircularProgress from '@mui/material/CircularProgress'
+import Snackbar from '@mui/material/Snackbar'
 import FilterListIcon from '@mui/icons-material/FilterList'
+import DownloadIcon from '@mui/icons-material/Download'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import LanguageIcon from '@mui/icons-material/Language'
@@ -43,6 +45,8 @@ import {
   getRunRanking,
   getRunKeywords,
   getRun,
+  getRunReportBlob,
+  ApiError,
 } from '@/lib/api-client'
 import type { KeywordBreakdownRow } from '@/lib/api-client'
 import { geoColors } from '@/lib/theme'
@@ -157,6 +161,33 @@ export default function OverviewPage({ params }: OverviewPageProps) {
   const { data: session } = useSession()
   const router = useRouter()
 
+  const [downloading, setDownloading] = useState<'md' | 'xlsx' | null>(null)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+
+  async function handleDownloadReport(type: 'md' | 'xlsx') {
+    setDownloading(type)
+    setDownloadError(null)
+    try {
+      const blob = await getRunReportBlob(session?.accessToken ?? '', clientKey, runId, type)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `geo-report-${runId}.${type}`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        setDownloadError('Report non ancora pronto. Riprova al termine della run.')
+      } else {
+        setDownloadError('Download non riuscito. Riprova.')
+      }
+    } finally {
+      setDownloading(null)
+    }
+  }
+
   const { data: runData } = useQuery({
     queryKey: ['run', clientKey, runId],
     queryFn: () => getRun(session?.accessToken ?? '', clientKey, runId),
@@ -245,10 +276,40 @@ export default function OverviewPage({ params }: OverviewPageProps) {
   const localesLabel = run?.locales?.join(', ') ?? '—'
   const visibilityLabel = kpis ? `${kpis.aiVisibilityScore.toFixed(1)}%` : '—'
   const kwCount = keywords.length
-  const providerLabel = run?.profileKey ?? '—'
+  const providerLabel = (() => {
+    const raw = (run?.profileSnapshot?.llmProvider as string | undefined)
+      ?? run?.profileKey?.split('_')[0]
+      ?? null
+    if (!raw) return '—'
+    const labels: Record<string, string> = {
+      openai: 'OpenAI', gemini: 'Gemini', perplexity: 'Perplexity',
+      anthropic: 'Anthropic', claude: 'Claude', mistral: 'Mistral',
+    }
+    return labels[raw.toLowerCase()] ?? raw
+  })()
 
   return (
     <Box>
+      {/* ── Report download actions ── */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, mb: 3, flexWrap: 'wrap' }}>
+        <Button
+          variant="outlined"
+          startIcon={downloading === 'xlsx' ? <CircularProgress size={16} /> : <DownloadIcon />}
+          onClick={() => void handleDownloadReport('xlsx')}
+          disabled={downloading !== null}
+        >
+          Scarica Excel
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={downloading === 'md' ? <CircularProgress size={16} /> : <DownloadIcon />}
+          onClick={() => void handleDownloadReport('md')}
+          disabled={downloading !== null}
+        >
+          Scarica Report (MD)
+        </Button>
+      </Box>
+
       {kpisError && (
         <Alert
           severity="error"
@@ -363,7 +424,7 @@ export default function OverviewPage({ params }: OverviewPageProps) {
                 ]}
                 xAxis={[{ label: 'Rank medio', min: 0 }]}
                 yAxis={[{ label: 'Visibilità (%)' }]}
-                slotProps={{ legend: { position: { vertical: 'bottom', horizontal: 'center' } } }}
+                slotProps={{ legend: { position: { vertical: 'bottom', horizontal: 'middle' } } }}
               />
             )}
           </CardContent>
@@ -513,6 +574,17 @@ export default function OverviewPage({ params }: OverviewPageProps) {
           </TableContainer>
         </CardContent>
       </Card>
+
+      <Snackbar
+        open={!!downloadError}
+        autoHideDuration={6000}
+        onClose={() => setDownloadError(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert severity="error" onClose={() => setDownloadError(null)}>
+          {downloadError}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }

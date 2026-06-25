@@ -48,6 +48,12 @@ export interface RunDoneEvent {
 
 export interface RunErrorEvent {
   message: string
+  code?: string
+}
+
+export interface RunQgenProgressEvent {
+  done: number
+  planned: number
 }
 
 // ── Return type ────────────────────────────────────────────────
@@ -56,6 +62,7 @@ export interface UseRunSocketReturn {
   connected: boolean
   logs: Array<{ phase: string; message: string; ts: string }>
   progress: RunProgressEvent | null
+  qgenProgress: RunQgenProgressEvent | null
   currentPhase: string | null
   terminalEvent: { status: string; doneQueries: number } | null
 }
@@ -84,6 +91,7 @@ export function useRunSocket(
   const [connected, setConnected] = useState(false)
   const [logs, setLogs] = useState<Array<{ phase: string; message: string; ts: string }>>([])
   const [progress, setProgress] = useState<RunProgressEvent | null>(null)
+  const [qgenProgress, setQgenProgress] = useState<RunQgenProgressEvent | null>(null)
   const [currentPhase, setCurrentPhase] = useState<string | null>(null)
   const [terminalEvent, setTerminalEvent] = useState<{
     status: string
@@ -91,6 +99,7 @@ export function useRunSocket(
   } | null>(null)
 
   const socketRef = useRef<Socket | null>(null)
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     // Only connect when explicitly enabled and a runId is provided
@@ -130,6 +139,11 @@ export function useRunSocket(
       setProgress(payload)
     })
 
+    // ── run:qgen_progress — qgen phase granular counter ───────
+    socket.on('run:qgen_progress', (payload: RunQgenProgressEvent) => {
+      setQgenProgress(payload)
+    })
+
     // ── run:phase — update current phase label ────────────────
     socket.on('run:phase', (payload: RunPhaseEvent) => {
       setCurrentPhase(payload.phase)
@@ -150,8 +164,16 @@ export function useRunSocket(
 
     // ── run:error — terminal failure ──────────────────────────
     socket.on('run:error', (payload: RunErrorEvent) => {
+      // RUN_NOT_FOUND is a transient race-condition error (socket connected before
+      // the HTTP GET confirmed the run). Retry run:watch after a short backoff.
+      if (payload.code === 'RUN_NOT_FOUND') {
+        if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current)
+        retryTimeoutRef.current = setTimeout(() => {
+          if (socket.connected) socket.emit('run:watch', { runId })
+        }, 2_000)
+        return
+      }
       setTerminalEvent({ status: 'error', doneQueries: 0 })
-      // Surface error as a log entry so the reasoning panel shows it
       setLogs((prev) => {
         const entry = {
           phase: 'error',
@@ -165,12 +187,12 @@ export function useRunSocket(
 
     // ── Cleanup ───────────────────────────────────────────────
     return () => {
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current)
       socket.disconnect()
       socketRef.current = null
-      // Reset state so a re-enable starts fresh
       setConnected(false)
     }
   }, [runId, enabled, token])
 
-  return { connected, logs, progress, currentPhase, terminalEvent }
+  return { connected, logs, progress, qgenProgress, currentPhase, terminalEvent }
 }

@@ -157,7 +157,7 @@ export default function RankingPage({ params }: RankingPageProps) {
 
   const ranking = data?.data
   const kpis = kpisData?.data
-  const targetBrandRow: TargetBrandRow | undefined = ranking?.targetBrandRow
+  const targetBrandRow: TargetBrandRow | undefined = ranking?.targetBrandRow ?? undefined
   const allCompetitors: BrandRankRow[] = ranking?.competitors ?? []
   const totalBrands = (data?.meta?.total ?? allCompetitors.length) + (targetBrandRow ? 1 : 0)
 

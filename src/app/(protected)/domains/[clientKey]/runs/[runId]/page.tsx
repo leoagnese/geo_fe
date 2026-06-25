@@ -51,6 +51,8 @@ import RunProgressBar from '@/components/RunProgressBar'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import { getRun, cancelRun, ApiError } from '@/lib/api-client'
 import { useRunSocket } from '@/hooks/useRunSocket'
+import { useRunProgress } from '@/hooks/useRunProgress'
+import { predictRunWork } from '@/lib/runPrediction'
 
 interface RunMonitorPageProps {
   params: { clientKey: string; runId: string }
@@ -289,17 +291,28 @@ export default function RunMonitorPage({ params }: RunMonitorPageProps) {
 
   const run = runData?.data
 
+  // ── profileSnapshot values extracted as strings to avoid `unknown` in JSX ──
+  const _snap = (run?.profileSnapshot ?? {}) as Record<string, string | number | boolean | null | undefined>
+  const snapLlmProvider = _snap.llmProvider != null ? String(_snap.llmProvider) : null
+  const snapRunModel    = _snap.runModel     != null ? String(_snap.runModel)    : null
+  const snapQgenModel   = _snap.qgenModel    != null ? String(_snap.qgenModel)   : null
+  const snapNerModel    = _snap.nerModel     != null ? String(_snap.nerModel)    : null
+  const snapReportModel = _snap.reportModel  != null ? String(_snap.reportModel) : null
+  const snapBatchSize   = _snap.batchSize    != null ? String(_snap.batchSize)   : null
+
   // ── Socket layer — connect immediately on mount so run:done is never missed.
   // Disabled only once HTTP confirms a terminal status (done/error/cancelled).
   const TERMINAL = ['done', 'error', 'cancelled']
   const socketEnabled =
-    !TERMINAL.includes(run?.status ?? '') && !!session?.accessToken
+    !!run && !TERMINAL.includes(run.status) && !!session?.accessToken
 
-  const { connected, logs, progress, currentPhase, terminalEvent } = useRunSocket(
+  const { connected, logs, progress, qgenProgress, currentPhase, terminalEvent } = useRunSocket(
     runId,
     socketEnabled,
     session?.accessToken ?? undefined,
   )
+
+  const prediction = run ? predictRunWork(run) : null
 
   // Suppress stale-poll warning when socket is connected
   useEffect(() => {
@@ -357,10 +370,12 @@ export default function RunMonitorPage({ params }: RunMonitorPageProps) {
   const isQueued = run?.status === 'queued'
   const isRunning = run?.status === 'running'
 
-  // Resolve live counters: socket progress takes precedence over last HTTP snapshot
-  const liveDoneQueries = progress?.done ?? run?.doneQueries ?? 0
-  const livePlannedQueries = progress?.planned ?? run?.plannedQueries ?? 0
-  const liveErrorQueries = run?.errorQueries ?? 0
+  const progressState = useRunProgress(
+    run,
+    progress,
+    qgenProgress,
+    isRunning || isQueued,
+  )
 
   // Show reasoning panel while run is active (debug: always visible when running to confirm rendering)
   const showReasoningPanel = isRunning
@@ -496,15 +511,6 @@ export default function RunMonitorPage({ params }: RunMonitorPageProps) {
         </Alert>
       )}
 
-      {/* ── Socket debug banner (temporaneo) ── */}
-      {isRunning && (
-        <Alert
-          severity={connected ? 'success' : 'warning'}
-          sx={{ mb: 2, fontFamily: 'var(--geo-font-mono)', fontSize: '0.75rem' }}
-        >
-          WS: {connected ? '🟢 connesso' : '🔴 non connesso'} | log ricevuti: {logs.length} | wsUrl: {typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_WS_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? 'n/d') : '...'}
-        </Alert>
-      )}
 
       {/* ── Reasoning panel — socket log stream, running only ── */}
       {showReasoningPanel && (
@@ -512,30 +518,17 @@ export default function RunMonitorPage({ params }: RunMonitorPageProps) {
       )}
 
       {/* ── Progress section — visible if running or queued ── */}
-      {(isRunning || isQueued) && run && (
+      {(isRunning || isQueued) && run && prediction && (
         <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h3" sx={{ mb: 2 }}>
-            Avanzamento
-            {currentPhase && (
-              <Typography
-                component="span"
-                variant="caption"
-                color="text.disabled"
-                sx={{ ml: 1.5, fontFamily: 'var(--geo-font-mono)' }}
-              >
-                [{currentPhase}]
-              </Typography>
-            )}
-          </Typography>
           {isQueued && (
             <Typography variant="body2" color="text.disabled" sx={{ mb: 2 }}>
               La run inizierà automaticamente.
             </Typography>
           )}
           <RunProgressBar
-            plannedQueries={livePlannedQueries}
-            doneQueries={liveDoneQueries}
-            errorQueries={liveErrorQueries}
+            live
+            progressState={progressState}
+            prediction={prediction}
             status={run.status}
             lastUpdated={lastUpdated}
             stalePollWarning={effectiveStalePollWarning}
@@ -553,6 +546,7 @@ export default function RunMonitorPage({ params }: RunMonitorPageProps) {
               Riepilogo query
             </Typography>
             <RunProgressBar
+              live={false}
               plannedQueries={run.plannedQueries}
               doneQueries={run.doneQueries}
               errorQueries={run.errorQueries}
@@ -571,32 +565,198 @@ export default function RunMonitorPage({ params }: RunMonitorPageProps) {
               Configurazione run
             </Typography>
           </AccordionSummary>
-          <AccordionDetails>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 2 }}>
+          <AccordionDetails sx={{ pt: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+
+              {/* ── Sezione: Progetto & Profilo ── */}
               <Box>
-                <Typography variant="caption" color="text.disabled">Iterazioni</Typography>
-                <Typography variant="body2">{run.runIterations}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.disabled">Locale</Typography>
-                <Typography variant="body2">
-                  {run.locales?.join(', ') || 'Default'}
+                <Typography variant="caption" color="text.disabled" sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, display: 'block', mb: 1 }}>
+                  Progetto &amp; Profilo LLM
                 </Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.disabled">Test mode</Typography>
-                <Typography variant="body2">{run.testMode ? 'Sì' : 'No'}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.disabled">Debug mode</Typography>
-                <Typography variant="body2">{run.debugMode ? 'Sì' : 'No'}</Typography>
-              </Box>
-              {run.keywordsOverride && run.keywordsOverride.length > 0 && (
-                <Box sx={{ gridColumn: 'span 2' }}>
-                  <Typography variant="caption" color="text.disabled">Keywords override</Typography>
-                  <Typography variant="body2">{run.keywordsOverride.join(', ')}</Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 1.5 }}>
+                  {run.targetDomain && (
+                    <Box>
+                      <Typography variant="caption" color="text.disabled">Dominio</Typography>
+                      <Typography variant="body2" fontFamily="var(--geo-font-mono)">{run.targetDomain}</Typography>
+                    </Box>
+                  )}
+                  {run.brand && (
+                    <Box>
+                      <Typography variant="caption" color="text.disabled">Brand</Typography>
+                      <Typography variant="body2">{run.brand}</Typography>
+                    </Box>
+                  )}
+                  <Box>
+                    <Typography variant="caption" color="text.disabled">Profilo</Typography>
+                    <Typography variant="body2" fontFamily="var(--geo-font-mono)">{run.profileKey}</Typography>
+                  </Box>
+                  {snapLlmProvider && (
+                    <Box>
+                      <Typography variant="caption" color="text.disabled">Provider</Typography>
+                      <Typography variant="body2">{snapLlmProvider}</Typography>
+                    </Box>
+                  )}
+                  {snapRunModel && (
+                    <Box>
+                      <Typography variant="caption" color="text.disabled">Modello run</Typography>
+                      <Typography variant="body2" fontFamily="var(--geo-font-mono)">{snapRunModel}</Typography>
+                    </Box>
+                  )}
+                  {snapQgenModel && (
+                    <Box>
+                      <Typography variant="caption" color="text.disabled">Modello qgen</Typography>
+                      <Typography variant="body2" fontFamily="var(--geo-font-mono)">{snapQgenModel}</Typography>
+                    </Box>
+                  )}
+                  {snapNerModel && (
+                    <Box>
+                      <Typography variant="caption" color="text.disabled">Modello NER</Typography>
+                      <Typography variant="body2" fontFamily="var(--geo-font-mono)">{snapNerModel}</Typography>
+                    </Box>
+                  )}
+                  {snapReportModel && (
+                    <Box>
+                      <Typography variant="caption" color="text.disabled">Modello report</Typography>
+                      <Typography variant="body2" fontFamily="var(--geo-font-mono)">{snapReportModel}</Typography>
+                    </Box>
+                  )}
                 </Box>
+              </Box>
+
+              <Divider />
+
+              {/* ── Sezione: Parametri esecuzione ── */}
+              <Box>
+                <Typography variant="caption" color="text.disabled" sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, display: 'block', mb: 1 }}>
+                  Parametri esecuzione
+                </Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 1.5 }}>
+                  <Box>
+                    <Typography variant="caption" color="text.disabled">Iterazioni</Typography>
+                    <Typography variant="body2">{run.runIterations}</Typography>
+                  </Box>
+                  {snapBatchSize && (
+                    <Box>
+                      <Typography variant="caption" color="text.disabled">Batch size</Typography>
+                      <Typography variant="body2">{snapBatchSize}</Typography>
+                    </Box>
+                  )}
+                  <Box>
+                    <Typography variant="caption" color="text.disabled">Locali</Typography>
+                    <Typography variant="body2">{run.locales && run.locales.length > 0 ? run.locales.join(', ') : 'Default'}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.disabled">Query pianificate</Typography>
+                    <Typography variant="body2">{run.plannedQueries}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.disabled">Test mode</Typography>
+                    <Typography variant="body2">{run.testMode ? 'Sì' : 'No'}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.disabled">Debug mode</Typography>
+                    <Typography variant="body2">{run.debugMode ? 'Sì' : 'No'}</Typography>
+                  </Box>
+                  {run.gotQueries && (
+                    <Box>
+                      <Typography variant="caption" color="text.disabled">Query pre-caricate</Typography>
+                      <Typography variant="body2">Sì</Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+
+              {/* ── Sezione: Keywords ── */}
+              {((run.keywordsOverride && run.keywordsOverride.length > 0) ||
+                (run.keywordsByLang && Object.keys(run.keywordsByLang).some(k => run.keywordsByLang![k]?.length > 0))) && (
+                <>
+                  <Divider />
+                  <Box>
+                    <Typography variant="caption" color="text.disabled" sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, display: 'block', mb: 1 }}>
+                      Keywords
+                    </Typography>
+                    {run.keywordsOverride && run.keywordsOverride.length > 0 && (
+                      <Box sx={{ mb: 1 }}>
+                        <Typography variant="caption" color="text.disabled">Override globale ({run.keywordsOverride.length})</Typography>
+                        <Typography variant="body2">{run.keywordsOverride.join(', ')}</Typography>
+                      </Box>
+                    )}
+                    {run.keywordsByLang && Object.entries(run.keywordsByLang).map(([lang, kws]) =>
+                      kws && kws.length > 0 ? (
+                        <Box key={lang} sx={{ mb: 1 }}>
+                          <Typography variant="caption" color="text.disabled">{lang} ({kws.length} keywords{run.questionsCountByLang?.[lang] ? `, ${run.questionsCountByLang[lang]} domande/kw` : ''})</Typography>
+                          <Typography variant="body2">{kws.join(', ')}</Typography>
+                        </Box>
+                      ) : null
+                    )}
+                  </Box>
+                </>
               )}
+
+              {/* ── Sezione: Personas ── */}
+              {run.personas && run.personas.length > 0 && (
+                <>
+                  <Divider />
+                  <Box>
+                    <Typography variant="caption" color="text.disabled" sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, display: 'block', mb: 1 }}>
+                      Personas ({run.personas.length})
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {run.personas.map((p) => (
+                        <Box
+                          key={p.id}
+                          sx={{
+                            px: 1.5,
+                            py: 0.5,
+                            borderRadius: 1,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            bgcolor: 'background.default',
+                          }}
+                        >
+                          <Typography variant="body2" fontWeight={500}>{p.name}</Typography>
+                          {p.description && (
+                            <Typography variant="caption" color="text.disabled" sx={{ display: 'block' }}>{p.description}</Typography>
+                          )}
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                </>
+              )}
+
+              {/* ── Sezione: Topics ── */}
+              {run.topics && run.topics.length > 0 && (
+                <>
+                  <Divider />
+                  <Box>
+                    <Typography variant="caption" color="text.disabled" sx={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, display: 'block', mb: 1 }}>
+                      Topic ({run.topics.length})
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {run.topics.map((t) => (
+                        <Box
+                          key={t.id}
+                          sx={{
+                            px: 1.5,
+                            py: 0.5,
+                            borderRadius: 1,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            bgcolor: 'background.default',
+                          }}
+                        >
+                          <Typography variant="body2">{t.label}</Typography>
+                          {t.keywords && t.keywords.length > 0 && (
+                            <Typography variant="caption" color="text.disabled">{t.keywords.join(', ')}</Typography>
+                          )}
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                </>
+              )}
+
             </Box>
           </AccordionDetails>
         </Accordion>

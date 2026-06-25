@@ -3,7 +3,7 @@
  *
  * 4 sections (in order):
  *   1. Active Run Settings   — client key, profile selection, iterations
- *   2. Query Management      — global keywords, custom query mode, personas, country selection
+ *   2. Query Management      — global keywords, custom query mode, country selection
  *   3. Profile & Provider    — provider badge, model versions, response config (from selected profile)
  *   4. Target Settings       — per-language tabs (IT/EN/FR): keyword list, max questions, location focus
  *
@@ -14,11 +14,11 @@
  */
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { useQuery, useMutation } from '@tanstack/react-query'
-import { useForm, Controller } from 'react-hook-form'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useForm, Controller, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Box from '@mui/material/Box'
@@ -40,16 +40,26 @@ import Tabs from '@mui/material/Tabs'
 import Tab from '@mui/material/Tab'
 import Tooltip from '@mui/material/Tooltip'
 import CircularProgress from '@mui/material/CircularProgress'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
+import IconButton from '@mui/material/IconButton'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import LockIcon from '@mui/icons-material/Lock'
+import AddIcon from '@mui/icons-material/Add'
+import DeleteIcon from '@mui/icons-material/Delete'
 import TagInput from '@/components/TagInput'
 import {
   getProfiles,
-  getPersonas,
+  getDomain,
+  postDomainPersona,
+  deleteDomainPersona,
   createRun,
   ApiError,
   type LlmProfile,
   type Persona,
+  type PersonaGroup,
 } from '@/lib/api-client'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -68,12 +78,26 @@ const PROVIDER_LABELS: Record<string, string> = {
   perplexity: 'Perplexity AI',
 }
 
+/** Derive a stable id from a topic label: lowercase, non-alphanumeric → '_'. */
+function slugifyTopic(label: string): string {
+  return label
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+}
+
 // ─── Zod schema ───────────────────────────────────────────────────────────────
 
 const LangSettingsSchema = z.object({
   keywords: z.array(z.string()).default([]),
   questionsCount: z.number().int().min(1).default(10),
   locationFocus: z.string().default(''),
+})
+
+const TopicSchema = z.object({
+  label: z.string().min(1, 'Etichetta obbligatoria'),
+  keywords: z.array(z.string()).default([]),
 })
 
 const NewRunSchema = z.object({
@@ -84,7 +108,8 @@ const NewRunSchema = z.object({
     .min(1, 'Almeno 1 iterazione'),
   globalKeywords: z.array(z.string()).default([]),
   activeLocales: z.array(z.string()).min(1, 'Seleziona almeno un paese'),
-  activePersonaIds: z.array(z.string()).min(1, 'Seleziona almeno una persona'),
+  activePersonaIds: z.array(z.string()).default([]),
+  topics: z.array(TopicSchema).default([]),
   langs: z.object({
     it: LangSettingsSchema,
     en: LangSettingsSchema,
@@ -107,19 +132,31 @@ export default function NewRunPage({ params }: Props) {
   const { data: session } = useSession()
   const router = useRouter()
 
+  const queryClient = useQueryClient()
   const [queuedBanner, setQueuedBanner] = useState(false)
   const [errorToast, setErrorToast] = useState<string | null>(null)
   const [activeLangTab, setActiveLangTab] = useState<LangCode>('it')
+  const [openPersonaDialog, setOpenPersonaDialog] = useState(false)
+  const [isAddingPersona, setIsAddingPersona] = useState(false)
+  const [isRemovingPersona, setIsRemovingPersona] = useState<string | null>(null)
+  const [personaFormError, setPersonaFormError] = useState<string | null>(null)
+  const nameRef = useRef<HTMLInputElement>(null)
+  const descRef = useRef<HTMLInputElement>(null)
+  const contextRef = useRef<HTMLInputElement>(null)
+  const searchStyleRef = useRef<HTMLInputElement>(null)
 
   const { data: profilesData, isLoading: profilesLoading, isError: profilesError, refetch: refetchProfiles } =
     useQuery({ queryKey: ['profiles'], queryFn: () => getProfiles(session?.accessToken ?? ''), enabled: !!session?.accessToken })
 
-  const { data: personasData, isLoading: personasLoading } =
-    useQuery({ queryKey: ['personas'], queryFn: () => getPersonas(session?.accessToken ?? ''), enabled: !!session?.accessToken })
+  const { data: domainData } = useQuery({
+    queryKey: ['domain', clientKey],
+    queryFn: () => getDomain(session?.accessToken ?? '', clientKey),
+    enabled: !!session?.accessToken,
+  })
 
   const profiles: LlmProfile[] = profilesData?.data ?? []
-  const personas: Persona[] = personasData?.data ?? []
-  const allPersonaIds = personas.map((p) => p.id)
+  const domainPersonas: Persona[] = (domainData?.data?.personas ?? []) as Persona[]
+  const domainGroups: PersonaGroup[] = (domainData?.data?.personaGroups ?? []) as PersonaGroup[]
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<NewRunForm>({
     resolver: zodResolver(NewRunSchema),
@@ -129,6 +166,7 @@ export default function NewRunPage({ params }: Props) {
       globalKeywords: [],
       activeLocales: ['it'],
       activePersonaIds: [],
+      topics: [{ label: '', keywords: [] }],
       langs: {
         it: { keywords: [], questionsCount: 10, locationFocus: '' },
         en: { keywords: [], questionsCount: 10, locationFocus: '' },
@@ -139,13 +177,19 @@ export default function NewRunPage({ params }: Props) {
     },
   })
 
+  const { fields: topicFields, append: appendTopic, remove: removeTopic } = useFieldArray({
+    control,
+    name: 'topics',
+  })
+
   const selectedProfileKey = watch('profileKey')
   const activeLocales = watch('activeLocales')
   const activePersonaIds = watch('activePersonaIds')
   const selectedProfile = profiles.find((p) => p.profileKey === selectedProfileKey)
+  const allPersonaIds = domainPersonas.map((p) => p.id)
 
-  // Pre-select all personas when catalog loads
-  if (personas.length > 0 && activePersonaIds.length === 0) {
+  // Pre-select all domain personas on first load
+  if (domainPersonas.length > 0 && activePersonaIds.length === 0) {
     setValue('activePersonaIds', allPersonaIds)
   }
 
@@ -167,6 +211,39 @@ export default function NewRunPage({ params }: Props) {
     setValue('activePersonaIds', next, { shouldValidate: true })
   }
 
+  async function handleAddPersona() {
+    const name = nameRef.current?.value.trim() ?? ''
+    const description = descRef.current?.value.trim() ?? ''
+    const context = contextRef.current?.value.trim() ?? ''
+    const searchStyle = searchStyleRef.current?.value.trim() ?? ''
+    if (!name || !description || !context) {
+      setPersonaFormError('Nome, descrizione e contesto sono obbligatori.')
+      return
+    }
+    setPersonaFormError(null)
+    setIsAddingPersona(true)
+    try {
+      await postDomainPersona(session?.accessToken ?? '', clientKey, { name, description, context, searchStyle: searchStyle || undefined })
+      await queryClient.invalidateQueries({ queryKey: ['domain', clientKey] })
+      setOpenPersonaDialog(false)
+    } catch (err) {
+      setPersonaFormError(err instanceof Error ? err.message : 'Errore durante il salvataggio.')
+    } finally {
+      setIsAddingPersona(false)
+    }
+  }
+
+  async function handleRemovePersona(personaId: string) {
+    setIsRemovingPersona(personaId)
+    try {
+      await deleteDomainPersona(session?.accessToken ?? '', clientKey, personaId)
+      await queryClient.invalidateQueries({ queryKey: ['domain', clientKey] })
+      setValue('activePersonaIds', activePersonaIds.filter((id) => id !== personaId))
+    } finally {
+      setIsRemovingPersona(null)
+    }
+  }
+
   const createRunMutation = useMutation({
     mutationFn: (data: NewRunForm) => {
       const keywordsByLang = Object.fromEntries(
@@ -184,6 +261,14 @@ export default function NewRunPage({ params }: Props) {
           .map((lang) => [lang, data.langs[lang as LangCode].locationFocus]),
       )
 
+      const topics = data.topics
+        .filter((t) => t.label.trim())
+        .map((t) => ({
+          id: slugifyTopic(t.label),
+          label: t.label.trim(),
+          keywords: t.keywords,
+        }))
+
       return createRun(session?.accessToken ?? '', clientKey, {
         profileKey: data.profileKey,
         runIterations: data.runIterations,
@@ -192,6 +277,7 @@ export default function NewRunPage({ params }: Props) {
         questionsCountByLang,
         activePersonaIds: data.activePersonaIds,
         locationFocusByLang,
+        topics,
         testMode: data.testMode,
         debugMode: data.debugMode,
       })
@@ -321,6 +407,86 @@ export default function NewRunPage({ params }: Props) {
 
           <Divider />
 
+          {/* Topics repeater */}
+          <FieldRow
+            label="Topic"
+            badge={`${topicFields.length}`}
+          >
+            <Typography variant="caption" color="text.secondary">
+              Definisci almeno un topic: il workflow distribuisce le query di analisi tra i topic.
+              L&apos;<code>id</code> è derivato automaticamente dall&apos;etichetta.
+            </Typography>
+            {topicFields.length === 0 && (
+              <Alert severity="warning" sx={{ my: 1 }}>
+                Nessun topic definito. Aggiungine almeno uno per consentire l&apos;analisi.
+              </Alert>
+            )}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>
+              {topicFields.map((topicField, index) => {
+                const label = watch(`topics.${index}.label`) ?? ''
+                const derivedId = slugifyTopic(label)
+                return (
+                  <Box
+                    key={topicField.id}
+                    sx={{
+                      display: 'flex', flexDirection: 'column', gap: 1,
+                      p: 1.5,
+                      border: '1px solid', borderColor: 'divider',
+                      borderRadius: 'var(--geo-radius-sm)',
+                      bgcolor: 'background.default',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                      <TextField
+                        label="Etichetta topic"
+                        size="small"
+                        fullWidth
+                        {...register(`topics.${index}.label`)}
+                        error={!!errors.topics?.[index]?.label}
+                        helperText={
+                          errors.topics?.[index]?.label?.message ??
+                          (derivedId ? `id: ${derivedId}` : 'es. "dove dormire a Torino"')
+                        }
+                      />
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => removeTopic(index)}
+                        sx={{ mt: 0.5 }}
+                        aria-label="Rimuovi topic"
+                      >
+                        <DeleteIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Box>
+                    <Controller
+                      name={`topics.${index}.keywords`}
+                      control={control}
+                      render={({ field }) => (
+                        <TagInput
+                          label="Keyword del topic (facoltative)"
+                          value={field.value ?? []}
+                          onChange={field.onChange}
+                          placeholder="Aggiungi keyword e premi Invio"
+                        />
+                      )}
+                    />
+                  </Box>
+                )
+              })}
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<AddIcon />}
+                onClick={() => appendTopic({ label: '', keywords: [] })}
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                Aggiungi topic
+              </Button>
+            </Box>
+          </FieldRow>
+
+          <Divider />
+
           {/* Custom query mode — locked */}
           <FieldRow label="Custom Query">
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -337,49 +503,67 @@ export default function NewRunPage({ params }: Props) {
 
           <Divider />
 
-          {/* Persona selection */}
+          {/* Persona selection + management */}
           <FieldRow
             label="Personas"
-            badge={`${activePersonaIds.length}/${personas.length} attive`}
+            badge={`${activePersonaIds.length}/${domainPersonas.length} attive`}
           >
-            {personasLoading ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CircularProgress size={16} />
-                <Typography variant="caption" color="text.secondary">Caricamento personas…</Typography>
+            {/* Quick-select by group */}
+            {domainGroups.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mb: 1.25, alignItems: 'center' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>Gruppo:</Typography>
+                {domainGroups.map((g) => (
+                  <Chip
+                    key={g.id}
+                    label={`${g.name} (${g.personaIds.length})`}
+                    size="small"
+                    variant={g.personaIds.every((id) => activePersonaIds.includes(id)) && activePersonaIds.length === g.personaIds.length ? 'filled' : 'outlined'}
+                    color="primary"
+                    onClick={() => setValue('activePersonaIds', g.personaIds, { shouldValidate: true })}
+                    sx={{ cursor: 'pointer', fontSize: 11 }}
+                  />
+                ))}
               </Box>
+            )}
+
+            <Box sx={{ display: 'flex', gap: 1, mb: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Button size="small" variant="outlined" sx={{ fontSize: 11, py: 0.25, px: 1, minWidth: 0 }}
+                onClick={() => setValue('activePersonaIds', allPersonaIds, { shouldValidate: true })}
+                disabled={domainPersonas.length === 0}>
+                Tutte
+              </Button>
+              <Button size="small" variant="outlined" sx={{ fontSize: 11, py: 0.25, px: 1, minWidth: 0 }}
+                onClick={() => setValue('activePersonaIds', [], { shouldValidate: true })}
+                disabled={domainPersonas.length === 0}>
+                Nessuna
+              </Button>
+              <Button size="small" variant="contained" startIcon={<AddIcon />}
+                sx={{ fontSize: 11, py: 0.25, px: 1.5, ml: 'auto' }}
+                onClick={() => { setPersonaFormError(null); setOpenPersonaDialog(true) }}>
+                Aggiungi
+              </Button>
+            </Box>
+
+            {domainPersonas.length === 0 ? (
+              <Typography variant="caption" color="text.secondary">
+                Nessuna persona configurata per questo dominio. Clicca "Aggiungi" per crearne una.
+              </Typography>
             ) : (
-              <>
-                <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
-                  <Button size="small" variant="outlined" sx={{ fontSize: 11, py: 0.25, px: 1, minWidth: 0 }}
-                    onClick={() => setValue('activePersonaIds', allPersonaIds, { shouldValidate: true })}>
-                    Tutte
-                  </Button>
-                  <Button size="small" variant="outlined" sx={{ fontSize: 11, py: 0.25, px: 1, minWidth: 0 }}
-                    onClick={() => setValue('activePersonaIds', [], { shouldValidate: true })}>
-                    Nessuna
-                  </Button>
-                </Box>
-
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
-                  {personas.map((persona) => {
-                    const checked = activePersonaIds.includes(persona.id)
-                    return (
-                      <PersonaCard
-                        key={persona.id}
-                        persona={persona}
-                        checked={checked}
-                        onToggle={() => togglePersona(persona.id)}
-                      />
-                    )
-                  })}
-                </Box>
-
-                {errors.activePersonaIds && (
-                  <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
-                    {errors.activePersonaIds.message}
-                  </Typography>
-                )}
-              </>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
+                {domainPersonas.map((persona) => {
+                  const checked = activePersonaIds.includes(persona.id)
+                  return (
+                    <PersonaCard
+                      key={persona.id}
+                      persona={persona}
+                      checked={checked}
+                      onToggle={() => togglePersona(persona.id)}
+                      onRemove={() => handleRemovePersona(persona.id)}
+                      isRemoving={isRemovingPersona === persona.id}
+                    />
+                  )
+                })}
+              </Box>
             )}
           </FieldRow>
 
@@ -645,6 +829,28 @@ export default function NewRunPage({ params }: Props) {
       <Snackbar open={!!errorToast} onClose={() => setErrorToast(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
         <Alert severity="error" onClose={() => setErrorToast(null)}>{errorToast}</Alert>
       </Snackbar>
+
+      {/* Add Persona Dialog */}
+      <Dialog open={openPersonaDialog} onClose={() => setOpenPersonaDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Nuova persona</DialogTitle>
+        <DialogContent sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {personaFormError && <Alert severity="error">{personaFormError}</Alert>}
+          <TextField label="Nome *" inputRef={nameRef} fullWidth size="small"
+            placeholder="es. Turista Arte e Cultura – City Break" />
+          <TextField label="Descrizione *" inputRef={descRef} fullWidth size="small" multiline rows={3}
+            placeholder="Profilo demografico, motivazioni, comportamento di ricerca…" />
+          <TextField label="Contesto *" inputRef={contextRef} fullWidth size="small" multiline rows={3}
+            placeholder="In prima persona: 'Sei Mario, 45 anni…'" />
+          <TextField label="Search Style (opzionale)" inputRef={searchStyleRef} fullWidth size="small"
+            placeholder="Query tipiche usate da questa persona" />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenPersonaDialog(false)}>Annulla</Button>
+          <Button variant="contained" onClick={handleAddPersona} disabled={isAddingPersona}>
+            {isAddingPersona ? 'Aggiunta…' : 'Aggiungi'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
@@ -725,42 +931,55 @@ function PersonaCard({
   persona,
   checked,
   onToggle,
+  onRemove,
+  isRemoving,
 }: {
   persona: Persona
   checked: boolean
   onToggle: () => void
+  onRemove: () => void
+  isRemoving: boolean
 }) {
   return (
     <Box
-      onClick={onToggle}
       sx={{
-        display: 'flex', gap: 1.5, alignItems: 'flex-start',
+        display: 'flex', gap: 1, alignItems: 'flex-start',
         p: 1.5,
         border: '1px solid',
         borderColor: checked ? 'primary.main' : 'divider',
         borderRadius: 'var(--geo-radius-sm)',
         bgcolor: checked ? 'primary.main' : 'background.paper',
-        cursor: 'pointer',
         transition: 'all 0.12s',
         '&:hover': { borderColor: 'primary.main' },
       }}
     >
-      <Checkbox
-        checked={checked} size="small" disableRipple
-        sx={{ p: 0, mt: 0.25, flexShrink: 0,
-          color: checked ? 'primary.contrastText' : 'text.disabled',
-          '&.Mui-checked': { color: 'primary.contrastText' } }}
-      />
-      <Box>
-        <Typography variant="body2" fontWeight={600}
-          sx={{ color: checked ? 'primary.contrastText' : 'text.primary', lineHeight: 1.3 }}>
-          {persona.name}
-        </Typography>
-        <Typography variant="caption"
-          sx={{ color: checked ? 'primary.contrastText' : 'text.secondary', opacity: checked ? 0.85 : 1, display: 'block', mt: 0.25 }}>
-          {persona.description}
-        </Typography>
+      <Box onClick={onToggle} sx={{ display: 'flex', gap: 1, flex: 1, cursor: 'pointer', alignItems: 'flex-start' }}>
+        <Checkbox
+          checked={checked} size="small" disableRipple
+          sx={{ p: 0, mt: 0.25, flexShrink: 0,
+            color: checked ? 'primary.contrastText' : 'text.disabled',
+            '&.Mui-checked': { color: 'primary.contrastText' } }}
+        />
+        <Box>
+          <Typography variant="body2" fontWeight={600}
+            sx={{ color: checked ? 'primary.contrastText' : 'text.primary', lineHeight: 1.3 }}>
+            {persona.name}
+          </Typography>
+          <Typography variant="caption"
+            sx={{ color: checked ? 'primary.contrastText' : 'text.secondary', opacity: checked ? 0.85 : 1, display: 'block', mt: 0.25 }}>
+            {persona.description}
+          </Typography>
+        </Box>
       </Box>
+      <IconButton
+        size="small"
+        onClick={(e) => { e.stopPropagation(); onRemove() }}
+        disabled={isRemoving}
+        sx={{ flexShrink: 0, color: checked ? 'primary.contrastText' : 'error.main', opacity: 0.7, '&:hover': { opacity: 1 } }}
+      >
+        {isRemoving ? <CircularProgress size={12} color="inherit" /> : <DeleteIcon sx={{ fontSize: 14 }} />}
+      </IconButton>
     </Box>
   )
 }
+

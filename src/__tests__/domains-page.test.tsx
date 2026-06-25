@@ -86,7 +86,7 @@ describe('DomainsPage — SC-010', () => {
       isLoading: true,
       isError: false,
       refetch: jest.fn(),
-    } as ReturnType<typeof useQuery>)
+    } as unknown as ReturnType<typeof useQuery>)
 
     // Import after mocks are set up
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -108,7 +108,7 @@ describe('DomainsPage — SC-010', () => {
       isLoading: true,
       isError: false,
       refetch: jest.fn(),
-    } as ReturnType<typeof useQuery>)
+    } as unknown as ReturnType<typeof useQuery>)
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const DomainsPage = require('../app/(protected)/domains/page').default
@@ -129,7 +129,7 @@ describe('DomainsPage — SC-010', () => {
       isLoading: false,
       isError: false,
       refetch: jest.fn(),
-    } as ReturnType<typeof useQuery>)
+    } as unknown as ReturnType<typeof useQuery>)
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const DomainsPage = require('../app/(protected)/domains/page').default
@@ -153,7 +153,7 @@ describe('DomainsPage — SC-010', () => {
       isLoading: false,
       isError: false,
       refetch: jest.fn(),
-    } as ReturnType<typeof useQuery>)
+    } as unknown as ReturnType<typeof useQuery>)
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const DomainsPage = require('../app/(protected)/domains/page').default

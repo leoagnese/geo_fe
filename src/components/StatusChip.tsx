@@ -67,8 +67,10 @@ function borderColor(hex: string): string {
   return hexToRgba(hex, 0.30)
 }
 
+const FALLBACK_CONFIG = { label: 'Sconosciuto', color: '#9e9e9e', bgOpacity: 0.10 }
+
 export default function StatusChip({ status, size = 'small' }: StatusChipProps) {
-  const cfg = STATUS_CONFIG[status]
+  const cfg = STATUS_CONFIG[status] ?? FALLBACK_CONFIG
 
   const isRunning = status === 'running'
 

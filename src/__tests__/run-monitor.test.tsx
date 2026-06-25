@@ -82,12 +82,12 @@ function setupPage(status: string) {
     data: { data: { ...baseRun, status } },
     isLoading: false,
     isError: false,
-  } as ReturnType<typeof useQuery>)
+  } as unknown as ReturnType<typeof useQuery>)
 
   mockUseMutation.mockReturnValue({
     mutate: jest.fn(),
     isPending: false,
-  } as ReturnType<typeof useMutation>)
+  } as unknown as ReturnType<typeof useMutation>)
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const RunMonitorPage = require('../app/(protected)/domains/[clientKey]/runs/[runId]/page').default

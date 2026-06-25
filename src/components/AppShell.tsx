@@ -8,7 +8,7 @@
  */
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 
@@ -56,6 +56,13 @@ export default function AppShell({ children }: AppShellProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+
+  // Auto-logout when the backend JWT expires mid-session
+  useEffect(() => {
+    if (session?.error === 'AccessTokenExpired') {
+      void signOut({ callbackUrl: '/login' })
+    }
+  }, [session?.error])
 
   const isAdmin = session?.user?.role === 'admin'
   const userInitial = session?.user?.email?.[0]?.toUpperCase() ?? 'U'

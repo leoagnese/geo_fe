@@ -1,21 +1,20 @@
 /**
- * SC-033 — Report LLM.
+ * SC-033 — Personas Management & Report LLM.
  *
- * 3-column layout (mockup screens 1, 2, 6):
- *   Left  (240px): Table of Contents + quick stat cards
- *   Center (flex):  Report content — rendered markdown or auto-generated from API data
- *   Right  (280px): AI Observations + Export actions
- *
- * Polls every 5s until report files arrive.
+ * Manages personas for a run:
+ * - Display configured personas with edit/delete actions
+ * - Empty state: "No personas configured" with button to add
+ * - Form to add new personas from static catalog
+ * - Removes hardcoded personas, allows manual configuration per run
  *
  * @implements US-017
  * @validates AC-026, AC-027
  */
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useRef, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
@@ -32,6 +31,12 @@ import TableCell from '@mui/material/TableCell'
 import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
+import TextField from '@mui/material/TextField'
+import IconButton from '@mui/material/IconButton'
 import DownloadIcon from '@mui/icons-material/Download'
 import ArticleIcon from '@mui/icons-material/Article'
 import TableChartIcon from '@mui/icons-material/TableChart'
@@ -39,13 +44,19 @@ import LightbulbIcon from '@mui/icons-material/Lightbulb'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
-import { getRunReport, getRunKeywords, getRunPersonas, type ReportFile } from '@/lib/api-client'
+import AddIcon from '@mui/icons-material/Add'
+import DeleteIcon from '@mui/icons-material/Delete'
+import { getRunReport, getRunKeywords, getRunPersonas, getDomain, postDomainPersona, deleteDomainPersona, type ReportFile, type Persona } from '@/lib/api-client'
 
-interface ReportLlmPageProps {
+interface PersonasPageProps {
   params: { clientKey: string; runId: string }
 }
 
-type ReportFileWithContent = ReportFile & { content?: string }
+type ReportFileWithContent = ReportFile
+
+interface ConfiguredPersona extends Persona {
+  configuredAt?: string
+}
 
 // ── Markdown → safe HTML ────────────────────────────────────────
 function markdownToHtml(md: string): string {
@@ -62,6 +73,33 @@ function markdownToHtml(md: string): string {
     .replace(/^(?!<[hulo\/<])/gm, '<p>')
     .replace(/<p><\/p>/g, '')
     .replace(/<p>(<[hul])/g, '$1')
+}
+
+// ── Browser-side file download ──────────────────────────────────
+function downloadFile(file: ReportFileWithContent) {
+  let blob: Blob
+  const name = file.fileName ?? `geo-report.${file.type}`
+
+  if (file.type === 'md' && file.content) {
+    blob = new Blob([file.content], { type: 'text/markdown;charset=utf-8' })
+  } else if (file.type === 'xlsx' && file.base64) {
+    const binary = atob(file.base64)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+    blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  } else if (file.driveUrl) {
+    window.open(file.driveUrl, '_blank')
+    return
+  } else {
+    return
+  }
+
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 // ── Navigation section item ─────────────────────────────────────
@@ -86,16 +124,49 @@ function TocItem({ label, active, onClick }: { label: string; active?: boolean; 
   )
 }
 
-export default function ReportLlmPage({ params }: ReportLlmPageProps) {
+export default function PersonasPage({ params }: PersonasPageProps) {
   const { clientKey, runId } = params
   const { data: session } = useSession()
   const token = session?.accessToken ?? ''
+  const queryClient = useQueryClient()
 
-  const { data: reportData, isLoading: reportLoading } = useQuery({
+  const [configuredPersonas, setConfiguredPersonas] = useState<ConfiguredPersona[]>([])
+  const [openDialog, setOpenDialog] = useState(false)
+  const [isAddingPersona, setIsAddingPersona] = useState(false)
+  const [isRemoving, setIsRemoving] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
+  const nameRef = useRef<HTMLInputElement>(null)
+  const descRef = useRef<HTMLInputElement>(null)
+  const contextRef = useRef<HTMLInputElement>(null)
+  const searchStyleRef = useRef<HTMLInputElement>(null)
+
+  // Load personas from domain catalog
+  const { data: domainPersonas } = useQuery({
+    queryKey: ['domain', clientKey],
+    queryFn: () => getDomain(token, clientKey),
+    enabled: !!token,
+    staleTime: 0,
+    select: (data) => (data?.data?.personas ?? []) as ConfiguredPersona[],
+  })
+
+  // Seed local (mutable) state from the query result. Doing this in an effect —
+  // NOT inside `select` — is essential: calling setState during render (which is
+  // what `select` runs in) triggers an infinite render loop once the query
+  // succeeds. React Query memoizes the select output, so this fires only when the
+  // catalog actually changes.
+  useEffect(() => {
+    if (domainPersonas) setConfiguredPersonas(domainPersonas)
+  }, [domainPersonas])
+
+  const { data: reportData, isLoading: reportLoading, isError: reportError } = useQuery({
     queryKey: ['run-report', clientKey, runId],
     queryFn: () => getRunReport(token, clientKey, runId),
     enabled: !!token,
+    retry: 3,
     refetchInterval: (query) => {
+      // Stop polling once the request has errored — otherwise the page polls
+      // a 404/500 forever and the spinner never resolves.
+      if (query.state.status === 'error') return false
       const files = query.state.data?.data?.files
       return !files || files.length === 0 ? 5_000 : false
     },
@@ -118,10 +189,51 @@ export default function ReportLlmPage({ params }: ReportLlmPageProps) {
   const report = reportData?.data
   const mdFile = report?.files.find((f) => f.type === 'md') as ReportFileWithContent | undefined
   const xlsxFile = report?.files.find((f) => f.type === 'xlsx')
-  const isGenerating = reportLoading || (!report?.files.length && !report?.uploadError)
+  const isGenerating =
+    !reportError && (reportLoading || (!report?.files.length && !report?.uploadError))
 
   const allKw = kwData?.data ?? []
   const allPersonas = personasData?.data ?? []
+
+  const handleAddPersona = async () => {
+    const name = nameRef.current?.value.trim() ?? ''
+    const description = descRef.current?.value.trim() ?? ''
+    const context = contextRef.current?.value.trim() ?? ''
+    const searchStyle = searchStyleRef.current?.value.trim() ?? ''
+
+    if (!name || !description || !context) {
+      setFormError('Nome, descrizione e contesto sono obbligatori.')
+      return
+    }
+    setFormError(null)
+    setIsAddingPersona(true)
+    try {
+      await postDomainPersona(token, clientKey, { name, description, context, searchStyle: searchStyle || undefined })
+      await queryClient.invalidateQueries({ queryKey: ['domain', clientKey] })
+      setOpenDialog(false)
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Errore durante il salvataggio.')
+    } finally {
+      setIsAddingPersona(false)
+    }
+  }
+
+  const handleRemovePersona = async (personaId: string) => {
+    setIsRemoving(personaId)
+    try {
+      await deleteDomainPersona(token, clientKey, personaId)
+      await queryClient.invalidateQueries({ queryKey: ['domain', clientKey] })
+    } catch {
+      // silently fail — persona stays in UI
+    } finally {
+      setIsRemoving(null)
+    }
+  }
+
+  const openAddDialog = () => {
+    setFormError(null)
+    setOpenDialog(true)
+  }
 
   // ── Analytics derived for auto-generated report ────────────────
   const analytics = useMemo(() => {
@@ -199,6 +311,14 @@ export default function ReportLlmPage({ params }: ReportLlmPageProps) {
               Il report viene creato automaticamente da n8n. Aggiornamento ogni 5s.
             </Typography>
           </Box>
+        )}
+
+        {/* Report fetch failed (404 while not done, 5xx, etc.) */}
+        {reportError && !report && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            Impossibile caricare il report. La run potrebbe non essere ancora
+            completata, oppure si è verificato un errore. Riprova più tardi.
+          </Alert>
         )}
 
         {/* Upload error */}
@@ -339,41 +459,105 @@ export default function ReportLlmPage({ params }: ReportLlmPageProps) {
 
             <Divider sx={{ my: 3 }} />
 
-            {/* Persona Analysis */}
+            {/* Persona Configuration & Analysis */}
             <Box sx={{ mb: 4 }}>
-              <Typography variant="h2" fontWeight={800} mb={2}>Analisi persona</Typography>
-              {personasLoading ? (
-                <Skeleton variant="rounded" height={160} />
-              ) : allPersonas.length === 0 ? (
-                <Typography variant="body2" color="text.disabled">Nessun dato persona disponibile.</Typography>
-              ) : (
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5 }}>
-                  {allPersonas.slice(0, 4).map((p) => (
-                    <Box
-                      key={p.personaId}
-                      sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 'var(--geo-radius-md)' }}
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="h2" fontWeight={800}>Analisi persona</Typography>
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={openAddDialog}
+                >
+                  Aggiungi persona
+                </Button>
+              </Box>
+
+              {/* Empty state */}
+              {configuredPersonas.length === 0 ? (
+                <Card sx={{ bgcolor: 'background.paper', border: '1px dashed', borderColor: 'divider' }}>
+                  <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body1" color="text.disabled" mb={2}>
+                      Nessuna persona configurata
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" mb={2.5}>
+                      Aggiungi personas per analizzare come diversi segmenti di utenti trovano il tuo brand nei risultati LLM.
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<AddIcon />}
+                      onClick={openAddDialog}
                     >
-                      <Typography variant="body2" fontWeight={700} mb={0.25}>{p.personaName}</Typography>
-                      <Typography variant="caption" color="text.disabled" display="block" mb={1.5}>
-                        {p.queriesExecuted} query eseguite
-                      </Typography>
-                      <Box sx={{ display: 'flex', gap: 2 }}>
-                        <Box>
-                          <Typography variant="caption" color="text.disabled" display="block">Visibilità</Typography>
-                          <Typography variant="body2" fontWeight={700}>{(p.visibilityPct * 100).toFixed(1)}%</Typography>
+                      Configura la prima persona
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {/* Configured personas list */}
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5, mb: 3 }}>
+                    {configuredPersonas.map((p) => (
+                      <Card key={p.id} sx={{ position: 'relative' }}>
+                        <CardContent sx={{ p: 2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1 }}>
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="body2" fontWeight={700} mb={0.25}>
+                                {p.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                                {p.description.substring(0, 80)}...
+                              </Typography>
+                            </Box>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleRemovePersona(p.id)}
+                              disabled={isRemoving === p.id}
+                              sx={{ color: 'error.main' }}
+                            >
+                              {isRemoving === p.id
+                                ? <CircularProgress size={14} color="inherit" />
+                                : <DeleteIcon fontSize="small" />}
+                            </IconButton>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Box>
+
+                  {/* Persona breakdown results (only if personas are configured and results exist) */}
+                  {personasLoading ? (
+                    <Skeleton variant="rounded" height={160} />
+                  ) : allPersonas.length > 0 ? (
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5 }}>
+                      {allPersonas.slice(0, 4).map((p) => (
+                        <Box
+                          key={p.personaId}
+                          sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 'var(--geo-radius-md)' }}
+                        >
+                          <Typography variant="body2" fontWeight={700} mb={0.25}>{p.personaName}</Typography>
+                          <Typography variant="caption" color="text.disabled" display="block" mb={1.5}>
+                            {p.queriesExecuted} query eseguite
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 2 }}>
+                            <Box>
+                              <Typography variant="caption" color="text.disabled" display="block">Visibilità</Typography>
+                              <Typography variant="body2" fontWeight={700}>{(p.visibilityPct * 100).toFixed(1)}%</Typography>
+                            </Box>
+                            <Box>
+                              <Typography variant="caption" color="text.disabled" display="block">Rank medio</Typography>
+                              <Typography variant="body2" fontWeight={700}>{p.avgRankPosition !== null ? `#${p.avgRankPosition.toFixed(1)}` : '—'}</Typography>
+                            </Box>
+                            <Box>
+                              <Typography variant="caption" color="text.disabled" display="block">Menzioni</Typography>
+                              <Typography variant="body2" fontWeight={700}>{p.targetMentions}</Typography>
+                            </Box>
+                          </Box>
                         </Box>
-                        <Box>
-                          <Typography variant="caption" color="text.disabled" display="block">Rank medio</Typography>
-                          <Typography variant="body2" fontWeight={700}>{p.avgRankPosition !== null ? `#${p.avgRankPosition.toFixed(1)}` : '—'}</Typography>
-                        </Box>
-                        <Box>
-                          <Typography variant="caption" color="text.disabled" display="block">Menzioni</Typography>
-                          <Typography variant="body2" fontWeight={700}>{p.targetMentions}</Typography>
-                        </Box>
-                      </Box>
+                      ))}
                     </Box>
-                  ))}
-                </Box>
+                  ) : null}
+                </>
               )}
             </Box>
 
@@ -434,8 +618,8 @@ export default function ReportLlmPage({ params }: ReportLlmPageProps) {
             ESPORTA
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {xlsxFile?.driveUrl ? (
-              <Button variant="outlined" startIcon={<TableChartIcon />} href={xlsxFile.driveUrl} target="_blank" fullWidth sx={{ justifyContent: 'flex-start' }}>
+            {xlsxFile && (xlsxFile.driveUrl || xlsxFile.base64) ? (
+              <Button variant="outlined" startIcon={<TableChartIcon />} onClick={() => downloadFile(xlsxFile)} fullWidth sx={{ justifyContent: 'flex-start' }}>
                 Scarica XLSX
               </Button>
             ) : (
@@ -443,8 +627,8 @@ export default function ReportLlmPage({ params }: ReportLlmPageProps) {
                 XLSX — in attesa
               </Button>
             )}
-            {mdFile?.driveUrl ? (
-              <Button variant="outlined" startIcon={<ArticleIcon />} href={mdFile.driveUrl} target="_blank" fullWidth sx={{ justifyContent: 'flex-start' }}>
+            {mdFile && (mdFile.driveUrl || mdFile.content) ? (
+              <Button variant="outlined" startIcon={<ArticleIcon />} onClick={() => downloadFile(mdFile)} fullWidth sx={{ justifyContent: 'flex-start' }}>
                 Scarica Report MD
               </Button>
             ) : (
@@ -516,6 +700,55 @@ export default function ReportLlmPage({ params }: ReportLlmPageProps) {
         </Box>
       </Box>
 
+      {/* Add Persona Dialog — free-form, no hardcoded catalog */}
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Nuova persona</DialogTitle>
+        <DialogContent sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {formError && <Alert severity="error" sx={{ mb: 1 }}>{formError}</Alert>}
+          <TextField
+            label="Nome *"
+            inputRef={nameRef}
+            fullWidth
+            size="small"
+            placeholder="es. Turista Arte e Cultura – City Break"
+          />
+          <TextField
+            label="Descrizione *"
+            inputRef={descRef}
+            fullWidth
+            size="small"
+            multiline
+            rows={3}
+            placeholder="Profilo demografico, motivazioni, comportamento di ricerca…"
+          />
+          <TextField
+            label="Contesto *"
+            inputRef={contextRef}
+            fullWidth
+            size="small"
+            multiline
+            rows={3}
+            placeholder="In prima persona: 'Sei Mario, 45 anni…'"
+          />
+          <TextField
+            label="Search Style (opzionale)"
+            inputRef={searchStyleRef}
+            fullWidth
+            size="small"
+            placeholder="Query tipiche usate da questa persona"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Annulla</Button>
+          <Button
+            variant="contained"
+            onClick={handleAddPersona}
+            disabled={isAddingPersona}
+          >
+            {isAddingPersona ? 'Aggiunta…' : 'Aggiungi'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

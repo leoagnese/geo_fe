@@ -75,12 +75,12 @@ describe('OverviewPage — SC-030', () => {
         isLoading: false,
         isError: false,
         refetch: jest.fn(),
-      } as ReturnType<typeof useQuery>)
+      } as unknown as ReturnType<typeof useQuery>)
       .mockReturnValueOnce({
         data: { data: mockReport },
         isLoading: false,
         isError: false,
-      } as ReturnType<typeof useQuery>)
+      } as unknown as ReturnType<typeof useQuery>)
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const OverviewPage = require('../app/(protected)/domains/[clientKey]/runs/[runId]/results/overview/page').default
@@ -122,12 +122,12 @@ describe('OverviewPage — SC-030', () => {
         isLoading: false,
         isError: false,
         refetch: jest.fn(),
-      } as ReturnType<typeof useQuery>)
+      } as unknown as ReturnType<typeof useQuery>)
       .mockReturnValueOnce({
         data: { data: mockReport },
         isLoading: false,
         isError: false,
-      } as ReturnType<typeof useQuery>)
+      } as unknown as ReturnType<typeof useQuery>)
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const OverviewPage = require('../app/(protected)/domains/[clientKey]/runs/[runId]/results/overview/page').default
@@ -159,7 +159,7 @@ describe('OverviewPage — SC-030', () => {
       isLoading: true,
       isError: false,
       refetch: jest.fn(),
-    } as ReturnType<typeof useQuery>)
+    } as unknown as ReturnType<typeof useQuery>)
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const OverviewPage = require('../app/(protected)/domains/[clientKey]/runs/[runId]/results/overview/page').default

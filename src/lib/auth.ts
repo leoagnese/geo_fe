@@ -111,13 +111,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
         }
       }
-      return token
+      // Token still valid
+      if (Date.now() < (token.accessTokenExpires ?? 0)) {
+        return token
+      }
+      // Backend JWT expired — clear accessToken so queries disable themselves
+      return { ...token, accessToken: undefined, error: 'AccessTokenExpired' }
     },
 
     async session({ session, token }) {
       return {
         ...session,
-        accessToken: token.accessToken ?? '',
+        accessToken: token.accessToken || '',
         user: {
           ...session.user,
           id: token.sub ?? '',

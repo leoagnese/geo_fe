@@ -23,7 +23,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -56,6 +56,8 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
   const router = useRouter()
   const [successToast, setSuccessToast] = useState(false)
   const [errorToast, setErrorToast] = useState<string | null>(null)
+
+  const queryClient = useQueryClient()
 
   const {
     data: domainData,
@@ -101,7 +103,8 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
         settori: data.settori,
         keywords: data.keywords,
       }),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      queryClient.setQueryData(['domain', clientKey], result)
       setSuccessToast(true)
       setTimeout(() => router.push(`/domains/${clientKey}`), 800)
     },

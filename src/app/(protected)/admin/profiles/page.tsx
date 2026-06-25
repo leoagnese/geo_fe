@@ -38,6 +38,8 @@ import Alert from '@mui/material/Alert'
 import Snackbar from '@mui/material/Snackbar'
 import Divider from '@mui/material/Divider'
 import Chip from '@mui/material/Chip'
+import Switch from '@mui/material/Switch'
+import FormControlLabel from '@mui/material/FormControlLabel'
 import IconButton from '@mui/material/IconButton'
 import CloseIcon from '@mui/icons-material/Close'
 import AddIcon from '@mui/icons-material/Add'
@@ -50,28 +52,27 @@ import { getProfiles, ApiError, type LlmProfile } from '@/lib/api-client'
 // Since api-client does not export standalone profile mutation functions,
 // we implement them inline using fetch with the auth token.
 
-async function createProfile(token: string, dto: CreateProfileForm) {
+type ProfilePayload = Omit<CreateProfileForm, 'webSearch'|'reasoningEffort'|'searchContextSize'|'includeWebSources'|'maxOutputTokens'|'maxToolCalls'|'active'|'responsesCfgJson'> & {
+  active?: boolean
+  responsesCfg?: Record<string, unknown>
+}
+
+async function createProfile(token: string, dto: ProfilePayload) {
   const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api/v1'
   const res = await fetch(`${BASE_URL}/profiles`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(dto),
   })
   if (!res.ok) throw new Error(await res.text())
   return res.json()
 }
 
-async function updateProfile(token: string, profileKey: string, dto: Partial<CreateProfileForm>) {
+async function updateProfile(token: string, profileKey: string, dto: Partial<ProfilePayload>) {
   const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api/v1'
   const res = await fetch(`${BASE_URL}/profiles/${profileKey}`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(dto),
   })
   if (!res.ok) throw new Error(await res.text())
@@ -79,6 +80,8 @@ async function updateProfile(token: string, profileKey: string, dto: Partial<Cre
 }
 
 const LLM_PROVIDERS = ['openai', 'gemini', 'perplexity'] as const
+const REASONING_EFFORT = ['low', 'medium', 'high'] as const
+const SEARCH_CONTEXT_SIZE = ['low', 'medium', 'high'] as const
 
 const CreateProfileSchema = z.object({
   profileKey: z.string().min(1, 'profileKey è obbligatorio'),
@@ -86,6 +89,27 @@ const CreateProfileSchema = z.object({
   runModel: z.string().min(1, 'runModel è obbligatorio'),
   qgenModel: z.string().min(1, 'qgenModel è obbligatorio'),
   nerModel: z.string().min(1, 'nerModel è obbligatorio'),
+  reportModel: z.string().default('gpt-4o-mini'),
+  batchSize: z.coerce.number().min(1).default(5),
+  qgenBatchSize: z.coerce.number().min(1).default(5),
+  active: z.boolean().default(true),
+  webSearch: z.boolean().default(false),
+  reasoningEffort: z.enum(REASONING_EFFORT).default('low'),
+  searchContextSize: z.enum(SEARCH_CONTEXT_SIZE).default('medium'),
+  includeWebSources: z.boolean().default(true),
+  maxOutputTokens: z.coerce.number().min(0).default(4000),
+  maxToolCalls: z.coerce.number().min(0).default(2),
+  // Free-form JSON for the rest of responsesCfg (locale/domain filters etc.)
+  responsesCfgJson: z
+    .string()
+    .default('')
+    .refine(
+      (val) => {
+        if (!val.trim()) return true
+        try { JSON.parse(val); return true } catch { return false }
+      },
+      { message: 'JSON non valido' },
+    ),
 })
 
 type CreateProfileForm = z.infer<typeof CreateProfileSchema>
@@ -124,7 +148,7 @@ export default function AdminProfilesPage() {
   })
 
   const createMutation = useMutation({
-    mutationFn: (formData: CreateProfileForm) =>
+    mutationFn: (formData: ProfilePayload) =>
       createProfile(session?.accessToken ?? '', formData),
     onSuccess: () => {
       setDrawerOpen(false)
@@ -138,7 +162,7 @@ export default function AdminProfilesPage() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ key, dto }: { key: string; dto: Partial<CreateProfileForm> }) =>
+    mutationFn: ({ key, dto }: { key: string; dto: Partial<ProfilePayload> }) =>
       updateProfile(session?.accessToken ?? '', key, dto),
     onSuccess: () => {
       setDrawerOpen(false)
@@ -169,30 +193,96 @@ export default function AdminProfilesPage() {
 
   const openCreateDrawer = () => {
     setEditingProfile(null)
-    reset({ llmProvider: 'openai', profileKey: '', runModel: '', qgenModel: '', nerModel: '' })
+    reset({
+      llmProvider: 'openai', profileKey: '', runModel: '', qgenModel: '', nerModel: '',
+      reportModel: 'gpt-4o-mini', batchSize: 5, qgenBatchSize: 5,
+      active: true, webSearch: false, reasoningEffort: 'low', searchContextSize: 'medium',
+      includeWebSources: true, maxOutputTokens: 4000, maxToolCalls: 2,
+      responsesCfgJson: '',
+    })
     setDrawerOpen(true)
   }
 
   const openEditDrawer = (profile: LlmProfile) => {
     setEditingProfile(profile)
+    const cfg = (profile.responsesCfg ?? {}) as Record<string, unknown>
+    // Keys edited via dedicated controls; everything else goes in the JSON textarea.
+    const STRUCTURED_KEYS = ['webSearch', 'reasoningEffort', 'searchContextSize', 'includeWebSources', 'maxOutputTokens', 'maxToolCalls']
+    const extraCfg = Object.fromEntries(
+      Object.entries(cfg).filter(([k]) => !STRUCTURED_KEYS.includes(k)),
+    )
     reset({
       profileKey: profile.profileKey,
       llmProvider: profile.llmProvider,
       runModel: profile.runModel,
       qgenModel: profile.qgenModel,
       nerModel: profile.nerModel,
+      reportModel: profile.reportModel ?? 'gpt-4o-mini',
+      batchSize: profile.batchSize ?? 5,
+      qgenBatchSize: profile.qgenBatchSize ?? 5,
+      active: profile.active ?? true,
+      webSearch: (cfg.webSearch as boolean) ?? false,
+      reasoningEffort: (cfg.reasoningEffort as typeof REASONING_EFFORT[number]) ?? 'low',
+      searchContextSize: (cfg.searchContextSize as typeof SEARCH_CONTEXT_SIZE[number]) ?? 'medium',
+      includeWebSources: (cfg.includeWebSources as boolean) ?? true,
+      maxOutputTokens: (cfg.maxOutputTokens as number) ?? 4000,
+      maxToolCalls: (cfg.maxToolCalls as number) ?? 2,
+      responsesCfgJson: Object.keys(extraCfg).length > 0 ? JSON.stringify(extraCfg, null, 2) : '',
     })
     setDrawerOpen(true)
   }
 
+  const buildResponsesCfg = (formData: CreateProfileForm): Record<string, unknown> => {
+    let extra: Record<string, unknown> = {}
+    if (formData.responsesCfgJson?.trim()) {
+      try {
+        const parsed = JSON.parse(formData.responsesCfgJson)
+        if (parsed && typeof parsed === 'object') extra = parsed as Record<string, unknown>
+      } catch {
+        // Validation already guards this; ignore here.
+      }
+    }
+    return {
+      ...extra,
+      webSearch: formData.webSearch,
+      reasoningEffort: formData.reasoningEffort,
+      searchContextSize: formData.searchContextSize,
+      includeWebSources: formData.includeWebSources,
+      maxOutputTokens: formData.maxOutputTokens,
+      maxToolCalls: formData.maxToolCalls,
+    }
+  }
+
   const onSubmit = (formData: CreateProfileForm) => {
+    const responsesCfg = buildResponsesCfg(formData)
     if (editingProfile) {
       updateMutation.mutate({
         key: editingProfile.profileKey,
-        dto: { runModel: formData.runModel, qgenModel: formData.qgenModel, nerModel: formData.nerModel },
+        dto: {
+          profileKey: formData.profileKey !== editingProfile.profileKey ? formData.profileKey : undefined,
+          llmProvider: formData.llmProvider,
+          runModel: formData.runModel,
+          qgenModel: formData.qgenModel,
+          nerModel: formData.nerModel,
+          reportModel: formData.reportModel,
+          batchSize: formData.batchSize,
+          qgenBatchSize: formData.qgenBatchSize,
+          active: formData.active,
+          responsesCfg,
+        },
       })
     } else {
-      createMutation.mutate(formData)
+      createMutation.mutate({
+        profileKey: formData.profileKey,
+        llmProvider: formData.llmProvider,
+        runModel: formData.runModel,
+        qgenModel: formData.qgenModel,
+        nerModel: formData.nerModel,
+        reportModel: formData.reportModel,
+        batchSize: formData.batchSize,
+        qgenBatchSize: formData.qgenBatchSize,
+        responsesCfg,
+      })
     }
   }
 
@@ -213,6 +303,18 @@ export default function AdminProfilesPage() {
     { field: 'runModel', headerName: 'Run model', width: 180 },
     { field: 'qgenModel', headerName: 'Qgen model', width: 180 },
     { field: 'nerModel', headerName: 'NER model', width: 180 },
+    {
+      field: 'active',
+      headerName: 'Attivo',
+      width: 80,
+      renderCell: (params) => (
+        <Chip
+          label={params.value ? 'sì' : 'no'}
+          size="small"
+          color={params.value ? 'success' : 'default'}
+        />
+      ),
+    },
     {
       field: 'actions',
       headerName: '',
@@ -321,9 +423,8 @@ export default function AdminProfilesPage() {
           <TextField
             label="profileKey"
             {...register('profileKey')}
-            disabled={!!editingProfile}
             error={!!errors.profileKey}
-            helperText={errors.profileKey?.message ?? (editingProfile ? 'profileKey non modificabile' : '')}
+            helperText={errors.profileKey?.message ?? (editingProfile ? 'Modifica la chiave: aggiorna anche tutti i run che la referenziano.' : '')}
             InputProps={{ sx: { fontFamily: 'var(--geo-font-mono)' } }}
           />
 
@@ -335,7 +436,6 @@ export default function AdminProfilesPage() {
                 {...field}
                 select
                 label="Provider LLM"
-                disabled={!!editingProfile}
                 error={!!errors.llmProvider}
               >
                 {LLM_PROVIDERS.map((p) => (
@@ -362,6 +462,124 @@ export default function AdminProfilesPage() {
             {...register('nerModel')}
             error={!!errors.nerModel}
             helperText={errors.nerModel?.message}
+          />
+          <TextField
+            label="reportModel"
+            {...register('reportModel')}
+            error={!!errors.reportModel}
+            helperText={errors.reportModel?.message ?? 'Modello usato per la generazione del report'}
+          />
+
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <TextField
+              label="batchSize"
+              type="number"
+              inputProps={{ min: 1, step: 1 }}
+              {...register('batchSize')}
+              error={!!errors.batchSize}
+              helperText={errors.batchSize?.message}
+              sx={{ flex: 1 }}
+            />
+            <TextField
+              label="qgenBatchSize"
+              type="number"
+              inputProps={{ min: 1, step: 1 }}
+              {...register('qgenBatchSize')}
+              error={!!errors.qgenBatchSize}
+              helperText={errors.qgenBatchSize?.message}
+              sx={{ flex: 1 }}
+            />
+          </Box>
+
+          <Controller
+            name="active"
+            control={control}
+            render={({ field }) => (
+              <FormControlLabel
+                control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
+                label="Profilo attivo"
+              />
+            )}
+          />
+
+          <Divider sx={{ my: 1 }}>
+            <Typography variant="caption" color="text.secondary">Responses Config</Typography>
+          </Divider>
+
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Controller
+              name="webSearch"
+              control={control}
+              render={({ field }) => (
+                <FormControlLabel
+                  control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
+                  label="Web Search"
+                />
+              )}
+            />
+            <Controller
+              name="includeWebSources"
+              control={control}
+              render={({ field }) => (
+                <FormControlLabel
+                  control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
+                  label="Include Sources"
+                />
+              )}
+            />
+          </Box>
+
+          <Controller
+            name="reasoningEffort"
+            control={control}
+            render={({ field }) => (
+              <TextField {...field} select label="Reasoning Effort">
+                {REASONING_EFFORT.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}
+              </TextField>
+            )}
+          />
+
+          <Controller
+            name="searchContextSize"
+            control={control}
+            render={({ field }) => (
+              <TextField {...field} select label="Search Context Size">
+                {SEARCH_CONTEXT_SIZE.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}
+              </TextField>
+            )}
+          />
+
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <TextField
+              label="Max Output Tokens"
+              type="number"
+              {...register('maxOutputTokens')}
+              error={!!errors.maxOutputTokens}
+              helperText={errors.maxOutputTokens?.message}
+              sx={{ flex: 1 }}
+            />
+            <TextField
+              label="Max Tool Calls"
+              type="number"
+              {...register('maxToolCalls')}
+              error={!!errors.maxToolCalls}
+              helperText={errors.maxToolCalls?.message}
+              sx={{ flex: 1 }}
+            />
+          </Box>
+
+          <TextField
+            label="responsesCfg avanzato (JSON)"
+            {...register('responsesCfgJson')}
+            error={!!errors.responsesCfgJson}
+            helperText={
+              errors.responsesCfgJson?.message ??
+              'Chiavi extra: localeWebSearch, excludedDomains, allowedDomains, excludedDomainContains. Le chiavi sopra hanno priorità.'
+            }
+            multiline
+            minRows={4}
+            placeholder={'{\n  "excludedDomains": ["example.com"],\n  "allowedDomains": []\n}'}
+            InputProps={{ sx: { fontFamily: 'var(--geo-font-mono)', fontSize: 13 } }}
           />
 
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
