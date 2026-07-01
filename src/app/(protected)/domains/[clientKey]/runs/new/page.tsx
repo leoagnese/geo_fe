@@ -45,11 +45,14 @@ import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import IconButton from '@mui/material/IconButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
+import ToggleButton from '@mui/material/ToggleButton'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import LockIcon from '@mui/icons-material/Lock'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import TagInput from '@/components/TagInput'
+import CampaignForm from './CampaignForm'
 import {
   getProfiles,
   getDomain,
@@ -129,6 +132,27 @@ interface Props {
 
 export default function NewRunPage({ params }: Props) {
   const { clientKey } = params
+  const [mode, setMode] = useState<'single' | 'campaign'>('single')
+
+  return (
+    <Box sx={{ maxWidth: 820, mx: 'auto', pb: 2 }}>
+      <Typography variant="h1" gutterBottom>Nuova run</Typography>
+      <ToggleButtonGroup
+        value={mode}
+        exclusive
+        onChange={(_, next) => next && setMode(next)}
+        size="small"
+        sx={{ mb: 3 }}
+      >
+        <ToggleButton value="single">Run singola</ToggleButton>
+        <ToggleButton value="campaign">Campagna</ToggleButton>
+      </ToggleButtonGroup>
+      {mode === 'single' ? <SingleRunForm clientKey={clientKey} /> : <CampaignForm clientKey={clientKey} />}
+    </Box>
+  )
+}
+
+function SingleRunForm({ clientKey }: { clientKey: string }) {
   const { data: session } = useSession()
   const router = useRouter()
 
@@ -305,8 +329,6 @@ export default function NewRunPage({ params }: Props) {
 
   return (
     <Box sx={{ maxWidth: 820, mx: 'auto', pb: 6 }}>
-      <Typography variant="h1" gutterBottom>Nuova run</Typography>
-
       <Box
         component="form"
         onSubmit={handleSubmit((data) => createRunMutation.mutate(data))}
