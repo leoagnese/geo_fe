@@ -11,15 +11,15 @@
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
 import { geoColors } from '@/lib/theme'
-import type { RunStatus } from '@/lib/api-client'
+import type { RunStatus, CampaignStatus } from '@/lib/api-client'
 
 interface StatusChipProps {
-  status: RunStatus
+  status: RunStatus | CampaignStatus
   size?: 'small' | 'medium'
 }
 
 const STATUS_CONFIG: Record<
-  RunStatus,
+  RunStatus | CampaignStatus,
   { label: string; color: string; bgOpacity: number }
 > = {
   queued: {
@@ -47,6 +47,16 @@ const STATUS_CONFIG: Record<
     color: geoColors.status.cancelled, // color.status.cancelled
     bgOpacity: 0.10,
   },
+  aggregating: {
+    label: 'Aggregazione…',
+    color: geoColors.status.aggregating,
+    bgOpacity: 0.10,
+  },
+  partial: {
+    label: 'Parziale',
+    color: geoColors.status.partial,
+    bgOpacity: 0.10,
+  },
 }
 
 /**
@@ -72,7 +82,7 @@ const FALLBACK_CONFIG = { label: 'Sconosciuto', color: '#9e9e9e', bgOpacity: 0.1
 export default function StatusChip({ status, size = 'small' }: StatusChipProps) {
   const cfg = STATUS_CONFIG[status] ?? FALLBACK_CONFIG
 
-  const isRunning = status === 'running'
+  const isRunning = status === 'running' || status === 'aggregating'
 
   const label = isRunning ? (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>

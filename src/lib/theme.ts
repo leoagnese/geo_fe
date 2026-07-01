@@ -280,6 +280,8 @@ export const geoColors = {
     done: '#16a34a',
     error: '#dc2626',
     cancelled: '#475569',
+    aggregating: '#8b5cf6', // violet-500 — transient "computing the report" state
+    partial: '#f97316',     // orange-500 — done but incomplete, distinct from error red
   },
   sentiment: {
     positive: '#16a34a',
