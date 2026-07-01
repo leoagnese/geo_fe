@@ -752,3 +752,169 @@ export async function deleteAdminUser(
 ): Promise<void> {
   await apiFetch<void>(`/admin/users/${userId}`, token, { method: 'DELETE' })
 }
+
+// ──────────────────────────────────────────────────────────────
+// Campaign types (aggregated multi-section run)
+// ──────────────────────────────────────────────────────────────
+
+export type CampaignStatus = 'queued' | 'running' | 'aggregating' | 'done' | 'partial' | 'error'
+export type SectionStatus = 'queued' | 'running' | 'done' | 'error' | 'missing' | 'cancelled'
+
+export interface CampaignSection {
+  sectionKey: string
+  label: string
+  runId: string
+  status: SectionStatus
+}
+
+export interface CampaignCoverage {
+  sectionsTotal: number
+  sectionsDone: number
+  sectionsMissing: string[]
+  plannedQueries: number
+  doneQueries: number
+  errorQueries: number
+}
+
+export interface Campaign {
+  campaignId: string
+  clientKey: string
+  profileKey: string
+  targetDomain?: string
+  brand?: string
+  status: CampaignStatus
+  sections: CampaignSection[]
+  concurrency: number
+  coverage: CampaignCoverage | null
+  errorMessage?: string | null
+  startedAt?: string
+  completedAt?: string | null
+  createdAt: string
+}
+
+export interface CreateCampaignDto {
+  profileKey: string
+  runIterations: number
+  locales?: string[]
+  activePersonaIds?: string[]
+  /** Per-section keyword override; keys are sectionKey. Omitted sections auto-generate. */
+  sectionKeywords?: Record<string, string[]>
+  testMode?: boolean
+  debugMode?: boolean
+}
+
+export interface CampaignListItem {
+  campaignId: string
+  clientKey: string
+  profileKey: string
+  status: CampaignStatus
+  sections: CampaignSection[]
+  createdAt: string
+  completedAt?: string | null
+}
+
+export interface CampaignBrandStat {
+  brand: string
+  isTarget: boolean
+  mentions: number
+  weight: number
+  aiVisibilityScore: number
+  avgRankPosition: number | null
+  linkRate: number
+  sentimentPositive: number
+  sentimentNeutral: number
+  sentimentNegative: number
+}
+
+export interface CampaignRanking {
+  totalMentions: number
+  shareOfVoice: number
+  target: CampaignBrandStat | null
+  top: CampaignBrandStat[]
+}
+
+export interface CampaignMatrix {
+  columns: string[]
+  rows: Array<{ personaId: string; values: number[]; total: number }>
+}
+
+export interface CampaignAggregate {
+  campaignId: string
+  status: CampaignStatus
+  coverage: CampaignCoverage | null
+  aggregate: {
+    perSection: Record<string, { ranking: CampaignRanking; insights: string[] }>
+    overall: { ranking: CampaignRanking; insights: string[] }
+    matrix: CampaignMatrix
+  } | null
+}
+
+// ──────────────────────────────────────────────────────────────
+// Campaign endpoints
+// ──────────────────────────────────────────────────────────────
+
+export async function createCampaign(
+  token: string,
+  clientKey: string,
+  dto: CreateCampaignDto,
+): Promise<ApiSuccess<Campaign>> {
+  return apiFetch<ApiSuccess<Campaign>>(`/domains/${clientKey}/campaigns`, token, {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  })
+}
+
+export async function getCampaigns(
+  token: string,
+  clientKey: string,
+  params?: { page?: number; limit?: number; status?: CampaignStatus },
+): Promise<ApiSuccess<CampaignListItem[]>> {
+  const sp = new URLSearchParams()
+  if (params?.page) sp.set('page', String(params.page))
+  if (params?.limit) sp.set('limit', String(params.limit))
+  if (params?.status) sp.set('status', params.status)
+  const qs = sp.toString() ? `?${sp.toString()}` : ''
+  return apiFetch<ApiSuccess<CampaignListItem[]>>(`/domains/${clientKey}/campaigns${qs}`, token)
+}
+
+export async function getCampaign(
+  token: string,
+  clientKey: string,
+  campaignId: string,
+): Promise<ApiSuccess<Campaign>> {
+  return apiFetch<ApiSuccess<Campaign>>(`/domains/${clientKey}/campaigns/${campaignId}`, token)
+}
+
+export async function getCampaignAggregate(
+  token: string,
+  clientKey: string,
+  campaignId: string,
+): Promise<ApiSuccess<CampaignAggregate>> {
+  return apiFetch<ApiSuccess<CampaignAggregate>>(
+    `/domains/${clientKey}/campaigns/${campaignId}/aggregate`,
+    token,
+  )
+}
+
+export async function rerunCampaignSection(
+  token: string,
+  clientKey: string,
+  campaignId: string,
+  sectionKey: string,
+): Promise<ApiSuccess<Campaign>> {
+  return apiFetch<ApiSuccess<Campaign>>(
+    `/domains/${clientKey}/campaigns/${campaignId}/sections/${encodeURIComponent(sectionKey)}/rerun`,
+    token,
+    { method: 'POST' },
+  )
+}
+
+export async function cancelCampaign(
+  token: string,
+  clientKey: string,
+  campaignId: string,
+): Promise<ApiSuccess<Campaign>> {
+  return apiFetch<ApiSuccess<Campaign>>(`/domains/${clientKey}/campaigns/${campaignId}/cancel`, token, {
+    method: 'POST',
+  })
+}
