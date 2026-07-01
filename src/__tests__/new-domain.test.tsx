@@ -15,7 +15,7 @@
  */
 
 import React from 'react'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom'
 
@@ -69,7 +69,7 @@ describe('NewDomainPage — SC-011', () => {
     const NewDomainPage = require('../app/(protected)/domains/new/page').default
     render(<NewDomainPage />)
 
-    expect(screen.getByText('Crea dominio')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Crea dominio' })).toBeInTheDocument()
     // clientKey field
     expect(screen.getByLabelText(/clientKey/i)).toBeInTheDocument()
     // brand field
@@ -91,8 +91,10 @@ describe('NewDomainPage — SC-011', () => {
     await userEvent.click(submitBtn)
 
     await waitFor(() => {
-      // Zod validation errors should appear for required fields
-      expect(screen.getByText(/obbligatorio/i)).toBeInTheDocument()
+      // Zod validation errors should appear for all 3 required fields
+      // (clientKey, targetDomain, brand all render "... è obbligatorio")
+      const errors = screen.getAllByText(/obbligatorio/i)
+      expect(errors.length).toBe(3)
     })
   })
 
@@ -107,9 +109,15 @@ describe('NewDomainPage — SC-011', () => {
     const NewDomainPage = require('../app/(protected)/domains/new/page').default
     render(<NewDomainPage />)
 
+    // react-hook-form's default validation mode is 'onSubmit' (with 'onChange'
+    // re-validation afterwards), so a bare blur on a pristine form does not
+    // trigger validation. Submit once first to arm validation, then edit the
+    // clientKey field so its onChange re-validation fires the format error.
+    const submitBtn = screen.getByRole('button', { name: /Crea dominio/i })
+    await userEvent.click(submitBtn)
+
     const clientKeyInput = screen.getByLabelText(/clientKey/i)
     await userEvent.type(clientKeyInput, 'Invalid Key With Spaces!')
-    fireEvent.blur(clientKeyInput)
 
     await waitFor(() => {
       expect(

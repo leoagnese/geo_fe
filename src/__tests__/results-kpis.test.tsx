@@ -33,10 +33,11 @@ jest.mock('@tanstack/react-query', () => ({
 }))
 
 import { useQuery } from '@tanstack/react-query'
+import type { RunKpis, RankingResult } from '@/lib/api-client'
 
 const mockUseQuery = useQuery as jest.MockedFunction<typeof useQuery>
 
-const mockKpis = {
+const mockKpis: RunKpis = {
   runId: '2026-05-15T10:00:00.000Z_caffevergnano.com',
   targetBrand: 'Caffè Vergnano',
   aiVisibilityScore: 67.4,
@@ -49,11 +50,77 @@ const mockKpis = {
   totalQueries: 42,
 }
 
-const mockReport = {
+const mockRun = {
   runId: '2026-05-15T10:00:00.000Z_caffevergnano.com',
-  reportFolderId: null,
-  files: [],
-  uploadError: null,
+  clientKey: 'caffevergnano',
+  profileKey: 'openai-gpt4o-standard',
+  locales: ['it-IT'],
+}
+
+const mockRanking: RankingResult = {
+  targetBrandRow: {
+    brand: 'Caffè Vergnano',
+    aiVisibilityScore: 67.4,
+    totalMentions: 84,
+    avgRankPosition: 2.3,
+    linkRate: 0.42,
+    sentimentPositive: 0.55,
+    sentimentNeutral: 0.35,
+    sentimentNegative: 0.10,
+  },
+  competitors: [],
+}
+
+const mockKeywords: unknown[] = []
+
+/**
+ * Builds a mockImplementation that returns the right fixture per queryKey,
+ * matching the current overview page's 4 useQuery calls (run, run-kpis,
+ * run-ranking, run-keywords), regardless of call order.
+ */
+function mockQueriesFor(kpis: RunKpis, ranking: RankingResult) {
+  mockUseQuery.mockImplementation((options: unknown) => {
+    const queryKey = (options as { queryKey: unknown[] }).queryKey
+    const key = queryKey[0]
+    if (key === 'run') {
+      return {
+        data: { data: mockRun },
+        isLoading: false,
+        isError: false,
+        refetch: jest.fn(),
+      } as unknown as ReturnType<typeof useQuery>
+    }
+    if (key === 'run-kpis') {
+      return {
+        data: { data: kpis },
+        isLoading: false,
+        isError: false,
+        refetch: jest.fn(),
+      } as unknown as ReturnType<typeof useQuery>
+    }
+    if (key === 'run-ranking') {
+      return {
+        data: { data: ranking },
+        isLoading: false,
+        isError: false,
+        refetch: jest.fn(),
+      } as unknown as ReturnType<typeof useQuery>
+    }
+    if (key === 'run-keywords') {
+      return {
+        data: { data: mockKeywords },
+        isLoading: false,
+        isError: false,
+        refetch: jest.fn(),
+      } as unknown as ReturnType<typeof useQuery>
+    }
+    return {
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    } as unknown as ReturnType<typeof useQuery>
+  })
 }
 
 describe('OverviewPage — SC-030', () => {
@@ -68,19 +135,7 @@ describe('OverviewPage — SC-030', () => {
    * Then: AI Visibility Score and target brand name are visible
    */
   it('AC-020: renders AI Visibility Score and target brand', async () => {
-    // First call: KPIs; second call: report
-    mockUseQuery
-      .mockReturnValueOnce({
-        data: { data: mockKpis },
-        isLoading: false,
-        isError: false,
-        refetch: jest.fn(),
-      } as unknown as ReturnType<typeof useQuery>)
-      .mockReturnValueOnce({
-        data: { data: mockReport },
-        isLoading: false,
-        isError: false,
-      } as unknown as ReturnType<typeof useQuery>)
+    mockQueriesFor(mockKpis, mockRanking)
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const OverviewPage = require('../app/(protected)/domains/[clientKey]/runs/[runId]/results/overview/page').default
@@ -91,10 +146,10 @@ describe('OverviewPage — SC-030', () => {
     )
 
     await waitFor(() => {
-      // AI Visibility Score value
-      expect(screen.getByText('67.4')).toBeInTheDocument()
-      // Target brand in "Focus sul target" card
-      expect(screen.getAllByText('Caffè Vergnano').length).toBeGreaterThan(0)
+      // AI Visibility Score value (rendered in both the KPI card value and its delta badge)
+      expect(screen.getAllByText('67.4%').length).toBeGreaterThan(0)
+      // Target brand in the Top 5 Brands by SOV list
+      expect(screen.getAllByText(/Caffè Vergnano/).length).toBeGreaterThan(0)
     })
   })
 
@@ -116,18 +171,12 @@ describe('OverviewPage — SC-030', () => {
       sentimentNegative: 0,
     }
 
-    mockUseQuery
-      .mockReturnValueOnce({
-        data: { data: zeroKpis },
-        isLoading: false,
-        isError: false,
-        refetch: jest.fn(),
-      } as unknown as ReturnType<typeof useQuery>)
-      .mockReturnValueOnce({
-        data: { data: mockReport },
-        isLoading: false,
-        isError: false,
-      } as unknown as ReturnType<typeof useQuery>)
+    const zeroRanking: RankingResult = {
+      targetBrandRow: { ...mockRanking.targetBrandRow!, aiVisibilityScore: 0, totalMentions: 0 },
+      competitors: [],
+    }
+
+    mockQueriesFor(zeroKpis, zeroRanking)
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const OverviewPage = require('../app/(protected)/domains/[clientKey]/runs/[runId]/results/overview/page').default
@@ -138,8 +187,8 @@ describe('OverviewPage — SC-030', () => {
     )
 
     await waitFor(() => {
-      // Score shows 0
-      expect(screen.getByText('0.0')).toBeInTheDocument()
+      // Score shows 0.0%
+      expect(screen.getAllByText('0.0%').length).toBeGreaterThan(0)
       // Zero-visibility explanatory warning (AC-021)
       expect(
         screen.getByText(/non è stato menzionato in nessuna risposta LLM/i),

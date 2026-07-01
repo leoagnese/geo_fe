@@ -104,7 +104,7 @@ describe('useRunSocket', () => {
     // io() should have been called with a URL ending in /runs
     expect(io).toHaveBeenCalledWith(
       expect.stringContaining('/runs'),
-      expect.objectContaining({ transports: ['websocket'] }),
+      expect.objectContaining({ reconnectionAttempts: 10, reconnectionDelay: 1000 }),
     )
 
     // Simulate server connect event

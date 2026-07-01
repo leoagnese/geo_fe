@@ -37,6 +37,7 @@ jest.mock('@tanstack/react-query', () => ({
     mutate: jest.fn(),
     isPending: false,
   })),
+  useQueryClient: jest.fn(() => ({ invalidateQueries: jest.fn() })),
 }))
 
 jest.mock('@/lib/api-client', () => ({
