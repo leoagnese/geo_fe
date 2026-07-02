@@ -269,7 +269,18 @@ export default function CampaignForm({ clientKey }: Props) {
             Settori ({activeSections.length}/{sectors.length})
           </Typography>
           {sectors.length === 0 ? (
-            <Alert severity="warning">
+            <Alert
+              severity="warning"
+              action={
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() => router.push(`/domains/${clientKey}/edit`)}
+                >
+                  Configura settori
+                </Button>
+              }
+            >
               Il dominio non ha settori configurati. Aggiungine almeno uno prima di creare una campagna.
             </Alert>
           ) : (
