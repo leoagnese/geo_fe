@@ -164,6 +164,11 @@ export default function CampaignDetailPage({ params }: Props) {
                 <Typography variant="body2" fontWeight={600}>
                   {section.label}
                 </Typography>
+                {section.status === 'queued' && section.queuePosition && section.queueLength && (
+                  <Typography variant="caption" color="text.secondary">
+                    (posizione {section.queuePosition} di {section.queueLength})
+                  </Typography>
+                )}
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {section.status === 'error' && (

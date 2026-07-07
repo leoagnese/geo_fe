@@ -45,6 +45,7 @@ const ADMIN_NAV_LINKS: NavLink[] = [
   { label: 'Run globali', path: '/admin/runs', exact: false },
   { label: 'Utenti',      path: '/admin/users', exact: true },
   { label: 'Profili LLM', path: '/admin/profiles', exact: false },
+  { label: 'Worker',      path: '/admin/workers', exact: false },
 ]
 
 interface AppShellProps {

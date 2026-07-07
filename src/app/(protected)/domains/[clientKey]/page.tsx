@@ -227,18 +227,6 @@ export default function DomainPage({ params }: DomainPageProps) {
                   {domain.clientKey}
                 </Typography>
               </Box>
-              {domain.settori && domain.settori.length > 0 && (
-                <Box>
-                  <Typography variant="caption" color="text.disabled">
-                    Settori
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
-                    {domain.settori.map((s) => (
-                      <Chip key={s} label={s} size="small" variant="outlined" />
-                    ))}
-                  </Box>
-                </Box>
-              )}
               {domain.aliases && domain.aliases.length > 0 && (
                 <Box>
                   <Typography variant="caption" color="text.disabled">

@@ -40,7 +40,6 @@ import { getDomain, updateDomain, ApiError } from '@/lib/api-client'
 const EditDomainSchema = z.object({
   brand: z.string().min(1, 'Brand è obbligatorio'),
   aliases: z.array(z.string()).default([]),
-  settori: z.array(z.string()).default([]),
   keywords: z.array(z.string()).default([]),
 })
 
@@ -80,7 +79,7 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
     formState: { errors, isSubmitting },
   } = useForm<EditDomainForm>({
     resolver: zodResolver(EditDomainSchema),
-    defaultValues: { brand: '', aliases: [], settori: [], keywords: [] },
+    defaultValues: { brand: '', aliases: [], keywords: [] },
   })
 
   // Pre-populate form once domain data arrives
@@ -89,7 +88,6 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
       reset({
         brand: domain.brand,
         aliases: domain.aliases ?? [],
-        settori: domain.settori ?? [],
         keywords: domain.keywords ?? [],
       })
     }
@@ -100,7 +98,6 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
       updateDomain(session?.accessToken ?? '', clientKey, {
         brand: data.brand,
         aliases: data.aliases,
-        settori: data.settori,
         keywords: data.keywords,
       }),
     onSuccess: (result) => {
@@ -177,24 +174,6 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
                 value={field.value}
                 onChange={field.onChange}
                 placeholder="Aggiungi alias e premi Invio"
-              />
-            )}
-          />
-        )}
-
-        {/* settori */}
-        {isLoading ? (
-          <Skeleton variant="rounded" height={56} />
-        ) : (
-          <Controller
-            name="settori"
-            control={control}
-            render={({ field }) => (
-              <TagInput
-                label="Settori (facoltativo)"
-                value={field.value}
-                onChange={field.onChange}
-                placeholder="Es. food-beverage"
               />
             )}
           />

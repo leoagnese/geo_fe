@@ -483,6 +483,7 @@ export default function RunMonitorPage({ params }: RunMonitorPageProps) {
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="body2" fontWeight={600}>
             Run in coda
+            {run?.queuePosition && run?.queueLength && ` — posizione ${run.queuePosition} di ${run.queueLength}`}
           </Typography>
           <Typography variant="body2">
             Partirà automaticamente al completamento della run in corso. La promozione è automatica.
@@ -578,6 +579,12 @@ export default function RunMonitorPage({ params }: RunMonitorPageProps) {
                     <Box>
                       <Typography variant="caption" color="text.disabled">Dominio</Typography>
                       <Typography variant="body2" fontFamily="var(--geo-font-mono)">{run.targetDomain}</Typography>
+                    </Box>
+                  )}
+                  {run.targetUrl && (
+                    <Box>
+                      <Typography variant="caption" color="text.disabled">URL analizzato</Typography>
+                      <Typography variant="body2" fontFamily="var(--geo-font-mono)">{run.targetUrl}</Typography>
                     </Box>
                   )}
                   {run.brand && (

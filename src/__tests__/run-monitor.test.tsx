@@ -175,4 +175,33 @@ describe('RunMonitorPage — SC-021/SC-022', () => {
       expect(screen.getByText(/Run in coda/i)).toBeInTheDocument()
     })
   })
+
+  it('shows the "URL analizzato" row when the run has a targetUrl override', async () => {
+    mockUseQuery.mockReturnValue({
+      data: { data: { ...baseRun, status: 'done', targetDomain: 'acme.com', targetUrl: 'acme.com/hotel-torino' } },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useQuery>)
+    mockUseMutation.mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+    } as unknown as ReturnType<typeof useMutation>)
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const RunMonitorPage = require('../app/(protected)/domains/[clientKey]/runs/[runId]/page').default
+    render(<RunMonitorPage params={{ clientKey: 'caffevergnano', runId: baseRun.runId }} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('URL analizzato')).toBeInTheDocument()
+      expect(screen.getByText('acme.com/hotel-torino')).toBeInTheDocument()
+    })
+  })
+
+  it('hides the "URL analizzato" row when the run has no targetUrl', async () => {
+    setupPage('done')
+
+    await waitFor(() => {
+      expect(screen.queryByText('URL analizzato')).not.toBeInTheDocument()
+    })
+  })
 })

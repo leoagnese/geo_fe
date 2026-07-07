@@ -78,20 +78,6 @@ export default function AdminDomainsPage() {
     },
     { field: 'targetDomain', headerName: 'Dominio target', flex: 1, minWidth: 180 },
     {
-      field: 'settori',
-      headerName: 'Settori',
-      flex: 1,
-      minWidth: 200,
-      sortable: false,
-      renderCell: (params) => (
-        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-          {((params.value as string[]) ?? []).slice(0, 3).map((s: string) => (
-            <Chip key={s} label={s} size="small" variant="outlined" />
-          ))}
-        </Box>
-      ),
-    },
-    {
       field: 'createdAt',
       headerName: 'Creato il',
       width: 150,

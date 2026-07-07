@@ -52,7 +52,6 @@ const CreateDomainSchema = z.object({
   targetDomain: z.string().min(1, 'Dominio target è obbligatorio'),
   brand: z.string().min(1, 'Brand è obbligatorio'),
   aliases: z.array(z.string()).default([]),
-  settori: z.array(z.string()).default([]),
   keywords: z.array(z.string()).default([]),
 })
 
@@ -80,7 +79,7 @@ export default function NewDomainPage() {
     formState: { errors, isSubmitting },
   } = useForm<CreateDomainForm>({
     resolver: zodResolver(CreateDomainSchema),
-    defaultValues: { aliases: [], settori: [], keywords: [] },
+    defaultValues: { aliases: [], keywords: [] },
   })
 
   const clientKeyValue = watch('clientKey')
@@ -123,7 +122,6 @@ export default function NewDomainPage() {
         targetDomain: data.targetDomain,
         brand: data.brand,
         aliases: data.aliases,
-        settori: data.settori,
         keywords: data.keywords,
       }),
     onSuccess: (result) => {
@@ -219,20 +217,6 @@ export default function NewDomainPage() {
               value={field.value}
               onChange={field.onChange}
               placeholder="Aggiungi alias e premi Invio"
-            />
-          )}
-        />
-
-        {/* settori — tag input (facoltativo) */}
-        <Controller
-          name="settori"
-          control={control}
-          render={({ field }) => (
-            <TagInput
-              label="Settori (facoltativo)"
-              value={field.value}
-              onChange={field.onChange}
-              placeholder="Es. food-beverage"
             />
           )}
         />

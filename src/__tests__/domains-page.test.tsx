@@ -57,7 +57,6 @@ const mockDomains = [
     clientKey: 'caffevergnano',
     targetDomain: 'caffevergnano.com',
     brand: 'Caffè Vergnano',
-    settori: ['food-beverage'],
     createdAt: '2026-05-15T10:00:00.000Z',
   },
   {
@@ -65,7 +64,6 @@ const mockDomains = [
     clientKey: 'lavazza',
     targetDomain: 'lavazza.com',
     brand: 'Lavazza',
-    settori: ['coffee'],
     createdAt: '2026-05-14T10:00:00.000Z',
   },
 ]

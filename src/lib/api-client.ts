@@ -60,7 +60,6 @@ export interface Domain {
   targetDomain: string
   brand: string
   aliases?: string[]
-  settori?: string[]
   keywords?: string[]
   personas?: Persona[]
   personaGroups?: PersonaGroup[]
@@ -74,14 +73,12 @@ export interface CreateDomainDto {
   targetDomain: string
   brand: string
   aliases?: string[]
-  settori?: string[]
   keywords?: string[]
 }
 
 export interface UpdateDomainDto {
   brand?: string
   aliases?: string[]
-  settori?: string[]
   keywords?: string[]
 }
 
@@ -105,7 +102,10 @@ export interface Run {
   profileKey: string
   targetDomain?: string
   brand?: string
+  targetUrl?: string | null
   status: RunStatus
+  queuePosition?: number
+  queueLength?: number
   runIterations: number
   locales?: string[]
   keywordsOverride?: string[]
@@ -140,6 +140,7 @@ export interface RunTopic {
 export interface CreateRunDto {
   profileKey: string
   runIterations: number
+  targetUrl?: string
   locales?: string[]
   keywordsOverride?: string[]
   keywordsByLang?: Record<string, string[]>
@@ -754,6 +755,70 @@ export async function deleteAdminUser(
 }
 
 // ──────────────────────────────────────────────────────────────
+// Worker pool (admin)
+// ──────────────────────────────────────────────────────────────
+
+export interface Worker {
+  workerId: string
+  label: string
+  webhookUrl: string
+  active: boolean
+}
+
+export interface WorkerWithOccupancy extends Worker {
+  healthy: boolean | null
+  lastHealthCheckAt: string | null
+  lastHealthCheckError: string | null
+  inUse: { runId: string; clientKey: string } | null
+}
+
+export interface CreateWorkerDto {
+  label: string
+  webhookUrl: string
+}
+
+export interface UpdateWorkerDto {
+  label?: string
+  webhookUrl?: string
+  active?: boolean
+}
+
+export async function getWorkers(token: string): Promise<ApiSuccess<WorkerWithOccupancy[]>> {
+  return apiFetch<ApiSuccess<WorkerWithOccupancy[]>>('/admin/workers', token)
+}
+
+export async function createWorker(
+  token: string,
+  dto: CreateWorkerDto,
+): Promise<ApiSuccess<Worker>> {
+  return apiFetch<ApiSuccess<Worker>>('/admin/workers', token, {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  })
+}
+
+export async function updateWorker(
+  token: string,
+  workerId: string,
+  dto: UpdateWorkerDto,
+): Promise<ApiSuccess<Worker>> {
+  return apiFetch<ApiSuccess<Worker>>(`/admin/workers/${workerId}`, token, {
+    method: 'PATCH',
+    body: JSON.stringify(dto),
+  })
+}
+
+export async function deleteWorker(token: string, workerId: string): Promise<void> {
+  await apiFetch<void>(`/admin/workers/${workerId}`, token, { method: 'DELETE' })
+}
+
+export async function checkWorkerHealth(token: string, workerId: string): Promise<ApiSuccess<WorkerWithOccupancy>> {
+  return apiFetch<ApiSuccess<WorkerWithOccupancy>>(`/admin/workers/${workerId}/health-check`, token, {
+    method: 'POST',
+  })
+}
+
+// ──────────────────────────────────────────────────────────────
 // Campaign types (aggregated multi-section run)
 // ──────────────────────────────────────────────────────────────
 
@@ -765,6 +830,8 @@ export interface CampaignSection {
   label: string
   runId: string
   status: SectionStatus
+  queuePosition?: number
+  queueLength?: number
 }
 
 export interface CampaignCoverage {
@@ -792,15 +859,24 @@ export interface Campaign {
   createdAt: string
 }
 
-export interface CreateCampaignDto {
+export interface CampaignSectionDto {
+  /** Analysis name, shown in the wizard sidebar/recap and used to derive sectionKey. */
+  label: string
   profileKey: string
   runIterations: number
+  targetUrl?: string
   locales?: string[]
+  keywordsByLang?: Record<string, string[]>
+  questionsCountByLang?: Record<string, number>
   activePersonaIds?: string[]
-  /** Per-section keyword override; keys are sectionKey. Omitted sections auto-generate. */
-  sectionKeywords?: Record<string, string[]>
+  locationFocusByLang?: Record<string, string>
+  topics?: Array<{ id: string; label: string; keywords?: string[] }>
   testMode?: boolean
   debugMode?: boolean
+}
+
+export interface CreateCampaignDto {
+  sections: CampaignSectionDto[]
 }
 
 export interface CampaignListItem {
