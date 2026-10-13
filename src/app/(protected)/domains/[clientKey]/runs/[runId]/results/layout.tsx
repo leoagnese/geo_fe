@@ -18,9 +18,9 @@ import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import Skeleton from '@mui/material/Skeleton'
-import FileDownloadIcon from '@mui/icons-material/FileDownload'
 import ReplayIcon from '@mui/icons-material/Replay'
 import DataModeToggle from '@/components/DataModeToggle'
+import ResultsDownloadButton from '@/components/ResultsDownloadButton'
 import RunConfigAccordion from '@/components/RunConfigAccordion'
 import { getDomain, getRun } from '@/lib/api-client'
 import { useDataMode } from '@/lib/useDataMode'
@@ -162,14 +162,7 @@ export default function ResultsLayout({ children, params }: ResultsLayoutProps) 
         {/* CTAs */}
         <Box sx={{ display: 'flex', gap: 1.5, flexShrink: 0, alignItems: 'center' }}>
           <DataModeToggle />
-          <Button
-            variant="outlined"
-            startIcon={<FileDownloadIcon />}
-            onClick={() => router.push(`${base}/personas`)}
-            sx={{ fontWeight: 600 }}
-          >
-            Esporta report
-          </Button>
+          <ResultsDownloadButton clientKey={clientKey} runId={runId} />
           <Button
             variant="contained"
             startIcon={<ReplayIcon />}
