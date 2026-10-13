@@ -25,6 +25,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import ReplayIcon from '@mui/icons-material/Replay'
 import CancelIcon from '@mui/icons-material/Cancel'
 import StatusChip from '@/components/StatusChip'
+import CampaignSources from '@/components/CampaignSources'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import { getCampaign, rerunCampaignSection, cancelCampaign, ApiError } from '@/lib/api-client'
 
@@ -193,6 +194,10 @@ export default function CampaignDetailPage({ params }: Props) {
           ))}
         </Box>
       </Paper>
+
+      {(campaign.status === 'done' || campaign.status === 'partial') && (
+        <CampaignSources clientKey={clientKey} campaignId={campaignId} />
+      )}
 
       <ConfirmDialog
         open={cancelDialogOpen}
