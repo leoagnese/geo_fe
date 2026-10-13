@@ -36,6 +36,7 @@ import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
 import TagInput from '@/components/TagInput'
 import BrandRegistryList from '@/components/BrandRegistryList'
+import DomainRegistryList from '@/components/DomainRegistryList'
 import { brandFieldHelp } from '@/lib/brandInput'
 import { getDomain, updateDomain, ApiError } from '@/lib/api-client'
 
@@ -202,6 +203,7 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
         )}
 
         {domain && <BrandRegistryList clientKey={clientKey} entries={domain.brandRegistry ?? []} />}
+        {domain && <DomainRegistryList clientKey={clientKey} entries={domain.domainRegistry ?? []} />}
 
         {/* keywords — usate da n8n come base per la generazione delle query */}
         {isLoading ? (
