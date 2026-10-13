@@ -20,8 +20,10 @@ import Chip from '@mui/material/Chip'
 import Skeleton from '@mui/material/Skeleton'
 import FileDownloadIcon from '@mui/icons-material/FileDownload'
 import ReplayIcon from '@mui/icons-material/Replay'
+import DataModeToggle from '@/components/DataModeToggle'
 import RunConfigAccordion from '@/components/RunConfigAccordion'
 import { getDomain, getRun } from '@/lib/api-client'
+import { useDataMode } from '@/lib/useDataMode'
 
 interface ResultsLayoutProps {
   children: React.ReactNode
@@ -41,6 +43,7 @@ export default function ResultsLayout({ children, params }: ResultsLayoutProps) 
   const pathname = usePathname()
   const router = useRouter()
   const { data: session } = useSession()
+  const { mode } = useDataMode()
 
   const { data: domainData } = useQuery({
     queryKey: ['domain', clientKey],
@@ -58,10 +61,12 @@ export default function ResultsLayout({ children, params }: ResultsLayoutProps) 
   const run = runData?.data
 
   const base = `/domains/${clientKey}/runs/${runId}/results`
+  const query = mode === 'processed' ? '?data=processed' : ''
   const tabs = [
     { label: 'Riepilogo',          path: `${base}/overview` },
     { label: 'Query Metrics',      path: `${base}/keywords` },
     { label: 'Brand Analysis',     path: `${base}/ranking` },
+    ...(mode === 'processed' ? [{ label: 'Fonti', path: `${base}/sources` }] : []),
     { label: 'Report LLM',         path: `${base}/personas` },
   ]
   const currentTab = Math.max(0, tabs.findIndex((t) => pathname.startsWith(t.path)))
@@ -155,7 +160,8 @@ export default function ResultsLayout({ children, params }: ResultsLayoutProps) 
         </Box>
 
         {/* CTAs */}
-        <Box sx={{ display: 'flex', gap: 1.5, flexShrink: 0 }}>
+        <Box sx={{ display: 'flex', gap: 1.5, flexShrink: 0, alignItems: 'center' }}>
+          <DataModeToggle />
           <Button
             variant="outlined"
             startIcon={<FileDownloadIcon />}
@@ -192,7 +198,7 @@ export default function ResultsLayout({ children, params }: ResultsLayoutProps) 
       >
         <Tabs
           value={currentTab}
-          onChange={(_e, idx: number) => router.push(tabs[idx].path)}
+          onChange={(_e, idx: number) => router.push(`${tabs[idx].path}${query}`)}
           sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
         >
           {tabs.map((tab) => (

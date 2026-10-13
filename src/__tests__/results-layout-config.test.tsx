@@ -8,8 +8,9 @@ import { getDomain, getRun } from '@/lib/api-client'
 
 jest.mock('next-auth/react', () => ({ useSession: jest.fn() }))
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
   usePathname: () => '/domains/acme/runs/r1/results/overview',
+  useSearchParams: () => new URLSearchParams(),
 }))
 jest.mock('@/lib/api-client', () => ({
   ...jest.requireActual('@/lib/api-client'),
