@@ -42,6 +42,7 @@ import dynamic from 'next/dynamic'
 import StatCard from '@/components/StatCard'
 import StatusBadge from '@/components/StatusBadge'
 import { getRunKeywords, getRunPersonas, type KeywordBreakdownRow } from '@/lib/api-client'
+import { useDataMode } from '@/lib/useDataMode'
 
 const ScatterChart = dynamic(
   () => import('@mui/x-charts/ScatterChart').then((m) => m.ScatterChart),
@@ -123,10 +124,11 @@ export default function KeywordsPage({ params }: KeywordsPageProps) {
   const { clientKey, runId } = params
   const { data: session } = useSession()
   const token = session?.accessToken ?? ''
+  const { mode } = useDataMode()
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['run-keywords', clientKey, runId],
-    queryFn: () => getRunKeywords(token, clientKey, runId),
+    queryKey: ['run-keywords', clientKey, runId, mode],
+    queryFn: () => getRunKeywords(token, clientKey, runId, mode === 'processed' ? 'topic' : undefined),
     enabled: !!token,
   })
 

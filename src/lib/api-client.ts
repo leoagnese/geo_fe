@@ -792,9 +792,10 @@ export async function getRunKeywords(
   token: string,
   clientKey: string,
   runId: string,
+  groupBy?: 'topic',
 ): Promise<ApiSuccess<KeywordBreakdownRow[]>> {
   return apiFetch<ApiSuccess<KeywordBreakdownRow[]>>(
-    `/domains/${clientKey}/runs/${runId}/results/by-keyword`,
+    `/domains/${clientKey}/runs/${runId}/results/by-keyword${groupBy ? `?groupBy=${groupBy}` : ''}`,
     token,
   )
 }
