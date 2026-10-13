@@ -21,6 +21,8 @@ export interface ApiMeta {
   page: number
   limit: number
   total: number
+  /** Ranking only: raw brand spellings merged into others (see brand unification). */
+  mergedNames?: number
 }
 
 export interface ApiSuccess<T> {
@@ -63,6 +65,7 @@ export interface Domain {
   keywords?: string[]
   personas?: Persona[]
   personaGroups?: PersonaGroup[]
+  brandRegistry?: BrandRegistryEntry[]
   ownerId?: string
   createdAt: string
   updatedAt?: string
@@ -205,7 +208,14 @@ export interface BrandRankRow {
   rank: number
   brand: string
   aiVisibilityScore: number
+  /** All appearances: citations + mentionsOnly. */
   totalMentions: number
+  /** Appearances with a link attached to the brand. */
+  citations: number
+  /** Appearances naming the brand without any link. */
+  mentionsOnly: number
+  /** Raw spellings merged into this brand, most frequent first. */
+  variants?: string[]
   avgRankPosition: number | null
   linkRate: number
   sentimentPositive: number
@@ -216,7 +226,14 @@ export interface BrandRankRow {
 export interface TargetBrandRow {
   brand: string
   aiVisibilityScore: number
+  /** All appearances: citations + mentionsOnly. */
   totalMentions: number
+  /** Appearances with a link attached to the brand. */
+  citations: number
+  /** Appearances naming the brand without any link. */
+  mentionsOnly: number
+  /** Raw spellings merged into this brand, most frequent first. */
+  variants?: string[]
   avgRankPosition: number | null
   linkRate: number
   sentimentPositive: number
@@ -481,6 +498,72 @@ export async function deleteDomainPersona(
   await apiFetch<void>(`/domains/${clientKey}/personas/${encodeURIComponent(personaId)}`, token, {
     method: 'DELETE',
   })
+}
+
+// ── Brand unification ─────────────────────────────────────────
+
+export interface BrandRegistryEntry {
+  canonical: string
+  variants: string[]
+}
+
+export interface BrandMergeSuggestion {
+  canonical: string
+  canonicalCount: number
+  variants: { name: string; count: number }[]
+}
+
+export async function getBrandSuggestions(
+  token: string,
+  clientKey: string,
+  runId: string,
+): Promise<ApiSuccess<BrandMergeSuggestion[]>> {
+  return apiFetch<ApiSuccess<BrandMergeSuggestion[]>>(
+    `/domains/${clientKey}/runs/${encodeURIComponent(runId)}/results/brand-suggestions`,
+    token,
+  )
+}
+
+export async function confirmBrandMerge(
+  token: string,
+  clientKey: string,
+  dto: { canonical: string; variants: string[] },
+): Promise<ApiSuccess<Domain>> {
+  return apiFetch<ApiSuccess<Domain>>(`/domains/${clientKey}/brand-registry`, token, {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  })
+}
+
+export async function rejectBrandMerge(
+  token: string,
+  clientKey: string,
+  a: string,
+  b: string,
+): Promise<ApiSuccess<Domain>> {
+  return apiFetch<ApiSuccess<Domain>>(`/domains/${clientKey}/brand-registry/rejections`, token, {
+    method: 'POST',
+    body: JSON.stringify({ a, b }),
+  })
+}
+
+export async function deleteBrandMerge(token: string, clientKey: string, canonical: string): Promise<void> {
+  await apiFetch<void>(`/domains/${clientKey}/brand-registry/${encodeURIComponent(canonical)}`, token, {
+    method: 'DELETE',
+  })
+}
+
+export async function deleteBrandMergeVariant(
+  token: string,
+  clientKey: string,
+  canonical: string,
+  variant: string,
+): Promise<void> {
+  await apiFetch<void>(
+    `/domains/${clientKey}/brand-registry/${encodeURIComponent(canonical)}/variants/${encodeURIComponent(variant)}`,
+    token,
+    { method: 'DELETE' },
+  )
 }
 
 export async function postDomainPersonaGroup(

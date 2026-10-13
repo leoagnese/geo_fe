@@ -26,6 +26,7 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useMutation } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
+import { brandFieldHelp } from '@/lib/brandInput'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Box from '@mui/material/Box'
@@ -83,6 +84,7 @@ export default function NewDomainPage() {
   })
 
   const clientKeyValue = watch('clientKey')
+  const brandHelp = brandFieldHelp(watch('brand') ?? '')
 
   // Debounced async uniqueness check on clientKey (AC-006)
   const checkClientKeyUnique = (value: string) => {
@@ -204,7 +206,8 @@ export default function NewDomainPage() {
           label="Brand"
           {...register('brand')}
           error={!!errors.brand}
-          helperText={errors.brand?.message}
+          color={brandHelp.warn ? 'warning' : undefined}
+          helperText={errors.brand?.message ?? brandHelp.text}
         />
 
         {/* aliases — tag input (facoltativo) */}

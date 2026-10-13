@@ -26,6 +26,7 @@ import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Alert from '@mui/material/Alert'
 import Skeleton from '@mui/material/Skeleton'
+import Tooltip from '@mui/material/Tooltip'
 import Chip from '@mui/material/Chip'
 import Checkbox from '@mui/material/Checkbox'
 import Select from '@mui/material/Select'
@@ -47,6 +48,9 @@ import StatCard from '@/components/StatCard'
 import { getRunRanking, getRunKpis } from '@/lib/api-client'
 import type { BrandRankRow, TargetBrandRow } from '@/lib/api-client'
 import { geoColors } from '@/lib/theme'
+import { assignBrandColors, buildScatterSeries, OTHERS_COLOR, TARGET_COLOR } from '@/lib/brandScatter'
+import BrandLegend from '@/components/BrandLegend'
+import BrandSuggestionsPanel from '@/components/BrandSuggestionsPanel'
 
 const ScatterChart = dynamic(
   () => import('@mui/x-charts/ScatterChart').then((m) => m.ScatterChart),
@@ -78,6 +82,22 @@ function BrandAvatar({ name, isTarget }: { name: string; isTarget?: boolean }) {
       {name[0]?.toUpperCase() ?? '?'}
     </Box>
   )
+}
+
+// ── Brand name with the spellings merged into it (tooltip) ─────
+function MergedNames({ variants, children }: { variants?: string[]; children: React.ReactNode }) {
+  if (!variants?.length) return <>{children}</>
+  const list = variants.join(', ')
+  return (
+    <Tooltip title={`Nomi uniti: ${list}`}>
+      <Box component="span" aria-label={`Nomi uniti: ${list}`}>{children}</Box>
+    </Tooltip>
+  )
+}
+
+// ── Colour dot: same colour the brand has in the scatter ───────
+function BrandDot({ color }: { color: string }) {
+  return <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: color, flexShrink: 0 }} />
 }
 
 // ── Mini sentiment bar (inline, for table rows) ────────────────
@@ -181,14 +201,14 @@ export default function RankingPage({ params }: RankingPageProps) {
       ? allCompetitors
       : allCompetitors.filter((c) => selectedBrands.includes(c.brand))
 
-  // Scatter data
-  const targetScatter = targetBrandRow?.avgRankPosition != null
-    ? [{ x: targetBrandRow.avgRankPosition, y: targetBrandRow.aiVisibilityScore, id: targetBrandRow.brand }]
-    : []
-
-  const competitorScatter = filteredCompetitors
-    .filter((c) => c.avgRankPosition != null)
-    .map((c) => ({ x: c.avgRankPosition!, y: c.aiVisibilityScore, id: c.brand }))
+  // Scatter: one series per brand. Colours come from the full competitor list so
+  // the brand filter never repaints the brands that stay.
+  const brandColors = useMemo(() => assignBrandColors(allCompetitors), [allCompetitors])
+  const { series: scatterSeries, legend: scatterLegend } = buildScatterSeries(
+    targetBrandRow,
+    filteredCompetitors,
+    brandColors,
+  )
 
   // Sentiment rows (target + top 3 competitors)
   const sentimentBrands = [
@@ -319,50 +339,38 @@ export default function RankingPage({ params }: RankingPageProps) {
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Box>
-                  <Typography variant="h3" fontWeight={700}>Panorama competitivo</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="h3" fontWeight={700}>Panorama competitivo</Typography>
+                    {(data?.meta?.mergedNames ?? 0) > 0 && (
+                      <Chip size="small" variant="outlined" label={`${data?.meta?.mergedNames} nomi uniti`} />
+                    )}
+                  </Box>
                   <Typography variant="caption" color="text.secondary">
                     Visibilità brand vs ranking di mercato
                   </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  {[
-                    { label: 'BRAND TARGET', color: 'primary.main' },
-                    { label: 'COMPETITOR', color: '#94a3b8' },
-                  ].map(({ label, color }) => (
-                    <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.625rem', fontWeight: 600 }}>
-                        {label}
-                      </Typography>
-                    </Box>
-                  ))}
                 </Box>
               </Box>
 
               {isLoading ? (
                 <Skeleton variant="rounded" height={300} />
-              ) : targetScatter.length === 0 && competitorScatter.length === 0 ? (
+              ) : scatterSeries.length === 0 ? (
                 <Box sx={{ textAlign: 'center', py: 6 }}>
                   <Typography variant="body2" color="text.disabled">
                     Dati di posizione non disponibili per questa run.
                   </Typography>
                 </Box>
               ) : (
+                <>
                 <ScatterChart
-                  series={[
-                    ...(targetScatter.length > 0
-                      ? [{ data: targetScatter, label: 'Brand Target', color: '#ec5b13', markerSize: 14 }]
-                      : []),
-                    ...(competitorScatter.length > 0
-                      ? [{ data: competitorScatter, label: 'Competitor', color: '#94a3b8', markerSize: 8 }]
-                      : []),
-                  ]}
+                  series={scatterSeries}
                   xAxis={[{ label: 'Rank medio (1-10)', min: 0 }]}
                   yAxis={[{ label: 'Visibility Score' }]}
                   height={300}
                   margin={{ left: 60, right: 20, top: 20, bottom: 60 }}
                   slots={{ legend: () => null }}
                 />
+                <BrandLegend items={scatterLegend} />
+                </>
               )}
             </CardContent>
           </Card>
@@ -575,6 +583,7 @@ export default function RankingPage({ params }: RankingPageProps) {
                               '&.Mui-checked': { color: isTarget ? 'primary.main' : 'text.secondary' },
                             }}
                           />
+                          <BrandDot color={isTarget ? TARGET_COLOR : (brandColors[brand] ?? OTHERS_COLOR)} />
                           <Typography
                             variant="body2"
                             fontWeight={isTarget ? 600 : 400}
@@ -635,6 +644,8 @@ export default function RankingPage({ params }: RankingPageProps) {
         </Box>
       </Box>
 
+      <BrandSuggestionsPanel clientKey={clientKey} runId={runId} />
+
       {/* ── Brand Performance Matrix ── */}
       <Card>
         <CardContent sx={{ pb: '16px !important' }}>
@@ -659,7 +670,12 @@ export default function RankingPage({ params }: RankingPageProps) {
               <TableHead>
                 <TableRow>
                   <TableCell>Nome brand</TableCell>
-                  <TableCell align="right">Menzioni</TableCell>
+                  <TableCell align="right">
+                    <Tooltip title="Brand richiamato nella risposta senza link"><span>Menzioni</span></Tooltip>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Tooltip title="Brand presente nella risposta con un link associato"><span>Citazioni</span></Tooltip>
+                  </TableCell>
                   <TableCell align="right">Link Rate</TableCell>
                   <TableCell align="right">Rank medio</TableCell>
                   <TableCell>Andamento sentiment</TableCell>
@@ -669,7 +685,7 @@ export default function RankingPage({ params }: RankingPageProps) {
                 {isLoading
                   ? Array.from({ length: 4 }).map((_, i) => (
                       <TableRow key={i}>
-                        {Array.from({ length: 5 }).map((_, j) => (
+                        {Array.from({ length: 6 }).map((_, j) => (
                           <TableCell key={j}><Skeleton variant="text" /></TableCell>
                         ))}
                       </TableRow>
@@ -686,12 +702,15 @@ export default function RankingPage({ params }: RankingPageProps) {
                         >
                           <TableCell>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                              <BrandDot color={TARGET_COLOR} />
                               <BrandAvatar name={targetBrandRow.brand} isTarget />
                               <Box>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                                  <Typography variant="body2" fontWeight={700}>
-                                    {targetBrandRow.brand}
-                                  </Typography>
+                                  <MergedNames variants={targetBrandRow.variants}>
+                                    <Typography variant="body2" fontWeight={700}>
+                                      {targetBrandRow.brand}
+                                    </Typography>
+                                  </MergedNames>
                                   <Chip
                                     label="TARGET"
                                     size="small"
@@ -710,7 +729,12 @@ export default function RankingPage({ params }: RankingPageProps) {
                           </TableCell>
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight={700}>
-                              {targetBrandRow.totalMentions.toLocaleString()}
+                              {targetBrandRow.mentionsOnly.toLocaleString()}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight={700}>
+                              {targetBrandRow.citations.toLocaleString()}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
@@ -734,13 +758,21 @@ export default function RankingPage({ params }: RankingPageProps) {
                         <TableRow key={comp.brand} hover>
                           <TableCell>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                              <BrandDot color={brandColors[comp.brand] ?? OTHERS_COLOR} />
                               <BrandAvatar name={comp.brand} />
-                              <Typography variant="body2">{comp.brand}</Typography>
+                              <MergedNames variants={comp.variants}>
+                                <Typography variant="body2">{comp.brand}</Typography>
+                              </MergedNames>
                             </Box>
                           </TableCell>
                           <TableCell align="right">
                             <Typography variant="body2">
-                              {comp.totalMentions.toLocaleString()}
+                              {comp.mentionsOnly.toLocaleString()}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2">
+                              {comp.citations.toLocaleString()}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">

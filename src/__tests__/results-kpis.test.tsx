@@ -62,6 +62,8 @@ const mockRanking: RankingResult = {
     brand: 'Caffè Vergnano',
     aiVisibilityScore: 67.4,
     totalMentions: 84,
+    citations: 35,
+    mentionsOnly: 49,
     avgRankPosition: 2.3,
     linkRate: 0.42,
     sentimentPositive: 0.55,

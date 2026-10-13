@@ -145,4 +145,14 @@ describe('NewDomainPage — SC-011', () => {
     const submitBtn = screen.getByRole('button', { name: /Crea dominio/i })
     expect(submitBtn).not.toBeDisabled()
   })
+
+  it('warns when the brand field looks like a URL', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const NewDomainPage = require('../app/(protected)/domains/new/page').default
+    render(<NewDomainPage />)
+
+    expect(screen.getByText(/come compare nelle risposte/i)).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText(/Brand/i), 'gewiss.com/it/it/')
+    expect(await screen.findByText(/sembra un URL/i)).toBeInTheDocument()
+  })
 })

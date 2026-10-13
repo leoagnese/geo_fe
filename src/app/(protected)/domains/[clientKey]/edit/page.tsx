@@ -35,6 +35,8 @@ import Skeleton from '@mui/material/Skeleton'
 import Snackbar from '@mui/material/Snackbar'
 import Alert from '@mui/material/Alert'
 import TagInput from '@/components/TagInput'
+import BrandRegistryList from '@/components/BrandRegistryList'
+import { brandFieldHelp } from '@/lib/brandInput'
 import { getDomain, updateDomain, ApiError } from '@/lib/api-client'
 
 const EditDomainSchema = z.object({
@@ -76,22 +78,26 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
     handleSubmit,
     control,
     reset,
-    formState: { errors, isSubmitting },
+    watch,
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<EditDomainForm>({
     resolver: zodResolver(EditDomainSchema),
     defaultValues: { brand: '', aliases: [], keywords: [] },
   })
 
-  // Pre-populate form once domain data arrives
+  const brandHelp = brandFieldHelp(watch('brand') ?? '')
+
+  // Pre-populate the form when domain data arrives. Once the user has edited something,
+  // a refetch (e.g. after undoing a brand merge) must not overwrite their unsaved changes.
   useEffect(() => {
-    if (domain) {
+    if (domain && !isDirty) {
       reset({
         brand: domain.brand,
         aliases: domain.aliases ?? [],
         keywords: domain.keywords ?? [],
       })
     }
-  }, [domain, reset])
+  }, [domain, reset, isDirty])
 
   const updateMutation = useMutation({
     mutationFn: (data: EditDomainForm) =>
@@ -157,7 +163,8 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
             label="Brand"
             {...register('brand')}
             error={!!errors.brand}
-            helperText={errors.brand?.message}
+            color={brandHelp.warn ? 'warning' : undefined}
+            helperText={errors.brand?.message ?? brandHelp.text}
           />
         )}
 
@@ -178,6 +185,8 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
             )}
           />
         )}
+
+        {domain && <BrandRegistryList clientKey={clientKey} entries={domain.brandRegistry ?? []} />}
 
         {/* keywords — usate da n8n come base per la generazione delle query */}
         {isLoading ? (
