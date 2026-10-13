@@ -20,6 +20,7 @@ import Chip from '@mui/material/Chip'
 import Skeleton from '@mui/material/Skeleton'
 import FileDownloadIcon from '@mui/icons-material/FileDownload'
 import ReplayIcon from '@mui/icons-material/Replay'
+import RunConfigAccordion from '@/components/RunConfigAccordion'
 import { getDomain, getRun } from '@/lib/api-client'
 
 interface ResultsLayoutProps {
@@ -172,6 +173,13 @@ export default function ResultsLayout({ children, params }: ResultsLayoutProps) 
           </Button>
         </Box>
       </Box>
+
+      {/* Run configuration — consultable from every results tab */}
+      {run && (
+        <Box sx={{ mb: 2 }}>
+          <RunConfigAccordion run={run} />
+        </Box>
+      )}
 
       {/* Sticky tab bar */}
       <Box

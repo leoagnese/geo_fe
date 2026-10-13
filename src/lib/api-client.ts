@@ -120,6 +120,8 @@ export interface Run {
   personas?: RunPersona[]
   topics?: Array<{ id: string; label: string; keywords?: string[] }>
   gotQueries?: boolean
+  /** Custom-query runs: the rows executed, per language. */
+  queries?: Record<string, Array<{ keyword: string; query: string; topicId?: string; intent?: string; personaId?: string }>>
   testMode: boolean
   debugMode: boolean
   profileSnapshot?: Record<string, unknown>
