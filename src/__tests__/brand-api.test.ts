@@ -20,8 +20,9 @@ describe('brand registry api', () => {
   }
 
   it('GETs suggestions for a run', async () => {
-    await getBrandSuggestions('tok', 'acme', 'run 1')
-    expect(lastCall().url.endsWith('/domains/acme/runs/run%201/results/brand-suggestions')).toBe(true)
+    // runId arrives already URL-encoded from useParams: it must not be encoded a second time (%3A -> %253A = 404)
+    await getBrandSuggestions('tok', 'acme', '2026-10-13T09%3A29%3A45.588Z-gewiss.com-it-it')
+    expect(lastCall().url.endsWith('/domains/acme/runs/2026-10-13T09%3A29%3A45.588Z-gewiss.com-it-it/results/brand-suggestions')).toBe(true)
     expect(lastCall().init.method).toBeUndefined()
     expect((lastCall().init.headers as Record<string, string>).Authorization).toBe('Bearer tok')
   })

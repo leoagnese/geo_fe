@@ -524,7 +524,7 @@ export async function getBrandSuggestions(
   runId: string,
 ): Promise<ApiSuccess<BrandMergeSuggestion[]>> {
   return apiFetch<ApiSuccess<BrandMergeSuggestion[]>>(
-    `/domains/${clientKey}/runs/${encodeURIComponent(runId)}/results/brand-suggestions`,
+    `/domains/${clientKey}/runs/${runId}/results/brand-suggestions`,
     token,
   )
 }
