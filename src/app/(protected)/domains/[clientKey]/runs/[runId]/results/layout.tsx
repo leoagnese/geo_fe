@@ -8,6 +8,7 @@
  */
 'use client'
 
+import { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useQuery } from '@tanstack/react-query'
@@ -61,6 +62,11 @@ export default function ResultsLayout({ children, params }: ResultsLayoutProps) 
   const run = runData?.data
 
   const base = `/domains/${clientKey}/runs/${runId}/results`
+
+  // Fonti exists only in processed mode: going back to raw must not leave its page on screen.
+  useEffect(() => {
+    if (mode === 'raw' && pathname.includes('/results/sources')) router.replace(`${base}/overview`)
+  }, [mode, pathname, router, base])
   const query = mode === 'processed' ? '?data=processed' : ''
   const tabs = [
     { label: 'Riepilogo',          path: `${base}/overview` },

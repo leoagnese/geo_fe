@@ -5,7 +5,8 @@ export function downloadBlob(blob: Blob, fileName: string): void {
   a.href = url
   a.download = fileName
   a.click()
-  URL.revokeObjectURL(url)
+  // Revoking right after click() can cancel the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 export function downloadText(content: string, fileName: string, type = 'application/json'): void {

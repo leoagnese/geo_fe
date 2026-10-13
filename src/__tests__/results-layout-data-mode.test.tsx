@@ -6,10 +6,12 @@ import ResultsLayout from '@/app/(protected)/domains/[clientKey]/runs/[runId]/re
 import { getDomain, getRun } from '@/lib/api-client'
 
 let mockSearch = ''
+let mockPathname = '/domains/acme/runs/r1/results/overview'
+const mockReplace = jest.fn()
 jest.mock('next-auth/react', () => ({ useSession: jest.fn() }))
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
-  usePathname: () => '/domains/acme/runs/r1/results/overview',
+  useRouter: () => ({ push: jest.fn(), replace: mockReplace }),
+  usePathname: () => mockPathname,
   useSearchParams: () => new URLSearchParams(mockSearch),
 }))
 jest.mock('@/lib/api-client', () => ({
@@ -27,6 +29,8 @@ const renderLayout = () =>
 
 describe('ResultsLayout — data mode', () => {
   beforeEach(() => {
+    mockPathname = '/domains/acme/runs/r1/results/overview'
+    mockReplace.mockClear()
     ;(useSession as jest.Mock).mockReturnValue({ data: { accessToken: 'tok' } })
     ;(getDomain as jest.Mock).mockResolvedValue({ data: { clientKey: 'acme', brand: 'Gewiss', targetDomain: 'gewiss.com' } })
     ;(getRun as jest.Mock).mockResolvedValue({
@@ -47,5 +51,21 @@ describe('ResultsLayout — data mode', () => {
     mockSearch = 'data=processed'
     renderLayout()
     expect(await screen.findByRole('tab', { name: 'Fonti' })).toBeInTheDocument()
+  })
+
+  it('leaves the Fonti page for the overview when the mode goes back to raw', async () => {
+    mockSearch = ''
+    mockPathname = '/domains/acme/runs/r1/results/sources'
+    renderLayout()
+    await screen.findByRole('tab', { name: 'Riepilogo' })
+    expect(mockReplace).toHaveBeenCalledWith('/domains/acme/runs/r1/results/overview')
+  })
+
+  it('stays on the Fonti page in processed mode', async () => {
+    mockSearch = 'data=processed'
+    mockPathname = '/domains/acme/runs/r1/results/sources'
+    renderLayout()
+    await screen.findByRole('tab', { name: 'Fonti' })
+    expect(mockReplace).not.toHaveBeenCalled()
   })
 })
