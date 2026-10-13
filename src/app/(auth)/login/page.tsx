@@ -19,8 +19,8 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const errorParam = searchParams.get('error')
 
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
+  const [usernameState, setUsername] = useState('')
+  const [passwordState, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(
@@ -29,6 +29,11 @@ function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    // Browser autofill writes to the DOM without firing onChange, so state can
+    // lag behind: read the actual field values at submit time.
+    const form = new FormData(e.currentTarget as HTMLFormElement)
+    const username = String(form.get('username') ?? '') || usernameState
+    const password = String(form.get('password') ?? '') || passwordState
     if (!username || !password) return
 
     setLoading(true)
@@ -101,8 +106,11 @@ function LoginForm() {
         >
           <TextField
             label="Username o email"
+            name="username"
+            // Autofill doesn't trigger MUI's filled state; keep the label out of the way.
+            InputLabelProps={{ shrink: true }}
             type="text"
-            value={username}
+            value={usernameState}
             onChange={(e) => setUsername(e.target.value)}
             autoComplete="username"
             autoFocus
@@ -113,8 +121,10 @@ function LoginForm() {
 
           <TextField
             label="Password"
+            name="password"
+            InputLabelProps={{ shrink: true }}
             type={showPassword ? 'text' : 'password'}
-            value={password}
+            value={passwordState}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
             required
@@ -141,7 +151,7 @@ function LoginForm() {
             variant="contained"
             size="large"
             fullWidth
-            disabled={loading || !username || !password}
+            disabled={loading}
             sx={{ mt: 1 }}
           >
             {loading ? <CircularProgress size={22} color="inherit" /> : 'Accedi'}
