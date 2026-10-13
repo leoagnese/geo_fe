@@ -184,6 +184,8 @@ export interface RunListItem {
   errorQueries: number
   startedAt?: string
   completedAt?: string | null
+  /** Set when the run is a section of a campaign. */
+  campaignId?: string | null
   createdAt: string
 }
 
@@ -647,6 +649,15 @@ export async function cancelRun(
   return apiFetch(`/domains/${clientKey}/runs/${runId}`, token, {
     method: 'DELETE',
   })
+}
+
+/** Permanently deletes a finished run and all its data (queries, responses, items). */
+export async function deleteRunPermanently(
+  token: string,
+  clientKey: string,
+  runId: string,
+): Promise<ApiSuccess<{ runId: string; deleted: boolean; queries: number; responses: number; items: number }>> {
+  return apiFetch(`/domains/${clientKey}/runs/${runId}/permanent`, token, { method: 'DELETE' })
 }
 
 // ──────────────────────────────────────────────────────────────

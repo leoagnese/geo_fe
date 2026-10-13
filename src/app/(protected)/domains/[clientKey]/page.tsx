@@ -54,6 +54,7 @@ import GroupIcon from '@mui/icons-material/Group'
 import StatusChip from '@/components/StatusChip'
 import { getDomain, getRuns, deleteDomain, ApiError } from '@/lib/api-client'
 import type { RunListItem } from '@/lib/api-client'
+import RunDeleteButton from '@/components/RunDeleteButton'
 
 interface DomainPageProps {
   params: { clientKey: string }
@@ -311,6 +312,7 @@ export default function DomainPage({ params }: DomainPageProps) {
                   <TableCell>Profilo</TableCell>
                   <TableCell align="right">Iterazioni</TableCell>
                   <TableCell>Avviata</TableCell>
+                  <TableCell align="right" />
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -351,6 +353,9 @@ export default function DomainPage({ params }: DomainPageProps) {
                       <Typography variant="body2" color="text.secondary">
                         {run.startedAt ? relativeTime(run.startedAt) : '—'}
                       </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <RunDeleteButton clientKey={clientKey} run={run} />
                     </TableCell>
                   </TableRow>
                 ))}
