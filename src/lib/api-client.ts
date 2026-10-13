@@ -66,6 +66,7 @@ export interface Domain {
   personas?: Persona[]
   personaGroups?: PersonaGroup[]
   brandRegistry?: BrandRegistryEntry[]
+  domainRegistry?: BrandRegistryEntry[]
   ownerId?: string
   createdAt: string
   updatedAt?: string
@@ -566,6 +567,99 @@ export async function deleteBrandMergeVariant(
 ): Promise<void> {
   await apiFetch<void>(
     `/domains/${clientKey}/brand-registry/${encodeURIComponent(canonical)}/variants/${encodeURIComponent(variant)}`,
+    token,
+    { method: 'DELETE' },
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// Sources: cited domains, persona × topic target share, domain registry
+// ──────────────────────────────────────────────────────────────
+
+export interface TopDomainRow { domain: string; mentions: number; queries: number; weight: number }
+export interface MatrixCell { total: number; target: number; share: number | null }
+export interface PersonaTopicMatrixData {
+  topics: string[]
+  rows: { personaId: string; cells: MatrixCell[]; total: MatrixCell }[]
+  totals: { cells: MatrixCell[]; total: MatrixCell }
+}
+export interface SourcesResult {
+  lang: string
+  target: string | null
+  personas: { id: string; name: string }[]
+  topics: string[]
+  topDomains: { rows: TopDomainRow[]; totalMentions: number; totalQueries: number }
+  matrix: PersonaTopicMatrixData
+  examplePrompts: Record<string, Record<string, string>>
+}
+export interface DomainMergeSuggestion { canonical: string; canonicalCount: number; variants: { name: string; count: number }[] }
+export interface ProcessedItem {
+  itemId: string; queryId: string; runId: string; timeStamp: string; isStaticProbe: boolean; lang: string; region: string
+  keywordCluster: string; personaType: string; promptText: string; modelName: string; runIteration: number
+  canonicalBrand: string; rankPosition: number; sentiment: string; hasLink: boolean; linkType: string; link: string
+  domain: string; isTarget: boolean
+}
+export interface CampaignSourcesResult {
+  lang: string
+  sections: { sectionKey: string; label: string }[]
+  topDomains: { rows: TopDomainRow[]; totalMentions: number; totalQueries: number }
+  matrix: PersonaTopicMatrixData
+  personas: { id: string; name: string }[]
+}
+
+export async function getRunSources(token: string, clientKey: string, runId: string, lang: string) {
+  return apiFetch<ApiSuccess<SourcesResult>>(`/domains/${clientKey}/runs/${runId}/results/sources?lang=${lang}`, token)
+}
+
+export async function getRunProcessedItems(token: string, clientKey: string, runId: string) {
+  return apiFetch<ApiSuccess<ProcessedItem[]> & { meta: { total: number } }>(
+    `/domains/${clientKey}/runs/${runId}/results/processed-items`,
+    token,
+  )
+}
+
+export async function getDomainSuggestions(token: string, clientKey: string, runId: string) {
+  return apiFetch<ApiSuccess<DomainMergeSuggestion[]>>(`/domains/${clientKey}/runs/${runId}/results/domain-suggestions`, token)
+}
+
+export async function getCampaignSources(token: string, clientKey: string, campaignId: string, lang: string) {
+  return apiFetch<ApiSuccess<CampaignSourcesResult>>(`/domains/${clientKey}/campaigns/${campaignId}/sources?lang=${lang}`, token)
+}
+
+export async function getCampaignDashboardData(token: string, clientKey: string, campaignId: string) {
+  return apiFetch<ApiSuccess<Record<string, unknown>>>(`/domains/${clientKey}/campaigns/${campaignId}/dashboard-data`, token)
+}
+
+export async function confirmDomainMerge(
+  token: string,
+  clientKey: string,
+  dto: { canonical: string; variants: string[] },
+): Promise<ApiSuccess<Domain>> {
+  return apiFetch<ApiSuccess<Domain>>(`/domains/${clientKey}/domain-registry`, token, {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  })
+}
+
+export async function rejectDomainMerge(token: string, clientKey: string, a: string, b: string): Promise<ApiSuccess<Domain>> {
+  return apiFetch<ApiSuccess<Domain>>(`/domains/${clientKey}/domain-registry/rejections`, token, {
+    method: 'POST',
+    body: JSON.stringify({ a, b }),
+  })
+}
+
+export async function deleteDomainMerge(token: string, clientKey: string, canonical: string): Promise<void> {
+  await apiFetch<void>(`/domains/${clientKey}/domain-registry/${encodeURIComponent(canonical)}`, token, { method: 'DELETE' })
+}
+
+export async function deleteDomainMergeVariant(
+  token: string,
+  clientKey: string,
+  canonical: string,
+  variant: string,
+): Promise<void> {
+  await apiFetch<void>(
+    `/domains/${clientKey}/domain-registry/${encodeURIComponent(canonical)}/variants/${encodeURIComponent(variant)}`,
     token,
     { method: 'DELETE' },
   )
