@@ -18,6 +18,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import CustomQueriesField from './CustomQueriesField'
 import { useFormContext, Controller, useFieldArray } from 'react-hook-form'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -88,6 +89,8 @@ export interface RunConfigFieldsProps {
   onAddPersona: (persona: { name: string; description: string; context: string; searchStyle?: string }) => Promise<void>
   isRemovingPersonaId: string | null
   onRemovePersona: (personaId: string) => Promise<void>
+  /** Unlocks the custom-query mode (single-run form only; campaigns don't support it yet). */
+  enableCustomQueries?: boolean
 }
 
 export default function RunConfigFields({
@@ -103,6 +106,7 @@ export default function RunConfigFields({
   onAddPersona,
   isRemovingPersonaId,
   onRemovePersona,
+  enableCustomQueries = false,
 }: RunConfigFieldsProps) {
   const { register, control, watch, setValue, formState: { errors: allErrors } } = useFormContext()
   const errors: any = namePrefix
@@ -379,18 +383,22 @@ export default function RunConfigFields({
 
         <Divider />
 
-        {/* Custom query mode — locked */}
+        {/* Custom query mode */}
         <FieldRow label="Custom Query">
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Tooltip title="Le query vengono generate automaticamente dall'AI. La modalità custom query non è ancora disponibile." placement="top">
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Switch disabled checked={false} size="small" />
-                <Typography variant="body2" color="text.disabled">Custom query mode</Typography>
-                <LockIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-              </Box>
-            </Tooltip>
-            <Chip label="AI-generated" size="small" variant="outlined" sx={{ fontSize: 11, height: 20 }} />
-          </Box>
+          {enableCustomQueries ? (
+            <CustomQueriesField namePrefix={namePrefix} personas={domainPersonas} />
+          ) : (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Tooltip title="Le query vengono generate automaticamente dall'AI. La modalità custom query non è ancora disponibile per le campagne." placement="top">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Switch disabled checked={false} size="small" />
+                  <Typography variant="body2" color="text.disabled">Custom query mode</Typography>
+                  <LockIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+                </Box>
+              </Tooltip>
+              <Chip label="AI-generated" size="small" variant="outlined" sx={{ fontSize: 11, height: 20 }} />
+            </Box>
+          )}
         </FieldRow>
 
         <Divider />

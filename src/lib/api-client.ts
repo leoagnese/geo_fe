@@ -150,6 +150,10 @@ export interface CreateRunDto {
   topics?: Array<{ id: string; label: string; keywords?: string[] }>
   testMode?: boolean
   debugMode?: boolean
+  /** Custom-query mode: n8n skips QGen and runs `queries` as given. */
+  gotQueries?: boolean
+  queries?: Record<string, Array<{ keyword: string; query: string; topicId?: string; intent?: string; personaId?: string }>>
+  customQueryDefaultPersonaId?: Record<string, string>
 }
 
 export interface Persona {

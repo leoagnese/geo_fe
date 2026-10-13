@@ -40,6 +40,11 @@ import {
   type PersonaGroup,
 } from '@/lib/api-client'
 
+/** Active languages with no complete (keyword + query) custom row. */
+function missingQueryLangs(queries: Record<string, { keyword: string; query: string }[]>, locales: string[]) {
+  return locales.filter((l) => !(queries[l] ?? []).some((q) => q.keyword.trim() && q.query.trim()))
+}
+
 // ─── Zod schema ───────────────────────────────────────────────────────────────
 
 const LangSettingsSchema = z.object({
@@ -49,8 +54,17 @@ const LangSettingsSchema = z.object({
 })
 
 const TopicSchema = z.object({
-  label: z.string().min(1, 'Etichetta obbligatoria'),
+  // Required only outside custom-query mode — see the superRefine on NewRunSchema.
+  label: z.string(),
   keywords: z.array(z.string()).default([]),
+})
+
+const CustomQuerySchema = z.object({
+  keyword: z.string(),
+  query: z.string(),
+  topicId: z.string().default(''),
+  intent: z.string().default(''),
+  personaId: z.string().default(''),
 })
 
 const NewRunSchema = z.object({
@@ -72,9 +86,25 @@ const NewRunSchema = z.object({
   }),
   testMode: z.boolean().default(false),
   debugMode: z.boolean().default(false),
+  gotQueries: z.boolean().default(false),
+  queries: z.record(z.array(CustomQuerySchema)).default({}),
+  customQueryDefaultPersonaId: z.record(z.string()).default({}),
 }).refine(
   (data) => !data.useCustomTargetUrl || data.targetUrl.trim().length > 0,
   { message: 'Inserisci un URL', path: ['targetUrl'] },
+).superRefine((data, ctx) => {
+  if (data.gotQueries) return
+  data.topics.forEach((t, i) => {
+    if (t.label.length === 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Etichetta obbligatoria', path: ['topics', i, 'label'] })
+    }
+  })
+}).refine(
+  (data) => !data.gotQueries || missingQueryLangs(data.queries, data.activeLocales).length === 0,
+  (data) => ({
+    message: `Inserisci almeno una query (keyword + query) per: ${missingQueryLangs(data.queries, data.activeLocales).join(', ')}`,
+    path: ['queries'],
+  }),
 )
 
 type NewRunForm = z.infer<typeof NewRunSchema>
@@ -147,6 +177,9 @@ function SingleRunForm({ clientKey }: { clientKey: string }) {
       },
       testMode: false,
       debugMode: false,
+      gotQueries: false,
+      queries: {},
+      customQueryDefaultPersonaId: {},
     },
   })
   const { handleSubmit, watch } = methods
@@ -200,18 +233,41 @@ function SingleRunForm({ clientKey }: { clientKey: string }) {
           keywords: t.keywords,
         }))
 
-      return createRun(session?.accessToken ?? '', clientKey, {
+      const base = {
         profileKey: data.profileKey,
         runIterations: data.runIterations,
         targetUrl: data.useCustomTargetUrl ? data.targetUrl.trim() : undefined,
         locales: data.activeLocales,
-        keywordsByLang,
-        questionsCountByLang,
         activePersonaIds: data.activePersonaIds,
         locationFocusByLang,
-        topics,
         testMode: data.testMode,
         debugMode: data.debugMode,
+      }
+
+      if (data.gotQueries) {
+        // Custom queries: only active languages, only complete rows. Keywords are not used; topics (derived from the file) are sent for reference.
+        const queries = Object.fromEntries(
+          data.activeLocales.map((lang) => [
+            lang,
+            (data.queries[lang] ?? [])
+              .filter((q) => q.keyword.trim() && q.query.trim())
+              .map((q) => ({ ...q, keyword: q.keyword.trim(), query: q.query.trim() })),
+          ]),
+        )
+        return createRun(session?.accessToken ?? '', clientKey, {
+          ...base,
+          gotQueries: true,
+          topics,
+          queries,
+          customQueryDefaultPersonaId: data.customQueryDefaultPersonaId,
+        })
+      }
+
+      return createRun(session?.accessToken ?? '', clientKey, {
+        ...base,
+        keywordsByLang,
+        questionsCountByLang,
+        topics,
       })
     },
     onSuccess: (result) => {
@@ -259,6 +315,7 @@ function SingleRunForm({ clientKey }: { clientKey: string }) {
             onAddPersona={handleAddPersonaSubmit}
             isRemovingPersonaId={isRemovingPersona}
             onRemovePersona={handleRemovePersona}
+            enableCustomQueries
           />
 
           {/* Actions */}

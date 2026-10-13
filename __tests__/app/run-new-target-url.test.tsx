@@ -86,4 +86,30 @@ describe('SingleRunForm — target URL override', () => {
       ),
     )
   })
+
+  it('with custom queries, an empty topic row does not block submission and is not sent', async () => {
+    ;(createRun as jest.Mock).mockResolvedValue({ data: { runId: 'run-1', status: 'running' } })
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByLabelText(/Profilo LLM/i))
+    await user.click(await screen.findByText('gpt5-mini'))
+    await user.click(screen.getByLabelText(/Usa query custom/i))
+    await user.click(screen.getByRole('button', { name: /Aggiungi query/ }))
+    await user.type(screen.getByLabelText('Keyword'), 'RCD')
+    await user.type(screen.getByLabelText('Query'), 'Quale differenziale scegliere?')
+    await user.click(screen.getByRole('button', { name: /Avvia run/i }))
+
+    await waitFor(() =>
+      expect(createRun).toHaveBeenCalledWith(
+        'tok',
+        'acme',
+        expect.objectContaining({
+          gotQueries: true,
+          queries: { it: [expect.objectContaining({ keyword: 'RCD', query: 'Quale differenziale scegliere?' })] },
+          topics: [],
+        }),
+      ),
+    )
+  })
 })

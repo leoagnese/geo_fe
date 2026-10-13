@@ -1,0 +1,632 @@
+[
+ [
+  "prompt",
+  "buyer persona",
+  "vertical",
+  "solution"
+ ],
+ [
+  "Nel progetto dell'impianto elettrico di un museo o di una biblioteca aperti al pubblico, come si coordinano protezione differenziale e impianto di terra per proteggere visitatori e operatori dai contatti indiretti?",
+  "Progettisti / Specifiers",
+  "Hospitality – Musei e biblioteche",
+  "90 RCD – Interruttori modulari per protezione differenziale"
+ ],
+ [
+  "In quali circuiti di una struttura ricettiva ha senso specificare interruttori differenziali di tipo F invece che di tipo A, e quali criteri di sicurezza e di continuità di servizio dovrei considerare nella scelta?",
+  "Progettisti / Specifiers",
+  "Hospitality – Strutture ricettive",
+  "90 RCD – Interruttori modulari per protezione differenziale"
+ ],
+ [
+  "Negli ambienti produttivi industriali, con quali criteri si sceglie tra differenziali di tipo AC, A e B in base ai carichi alimentati, e quali errori di specifica capitano più spesso?",
+  "Progettisti / Specifiers",
+  "Industry – Ambienti produttivi industriali",
+  "90 RCD – Interruttori modulari per protezione differenziale"
+ ],
+ [
+  "Per una struttura sportiva con aree interne ed esterne, come coordinare differenziali da 30 mA e da 300 mA, anche selettivi, per bilanciare la protezione delle persone con la continuità di servizio?",
+  "Progettisti / Specifiers",
+  "Sports – Strutture sportive",
+  "90 RCD – Interruttori modulari per protezione differenziale"
+ ],
+ [
+  "Per proteggere macchinari e apparecchiature sensibili in un reparto manifatturiero, come scelgo la curva di intervento degli interruttori magnetotermici, ad esempio la curva C, e quali caratteristiche di risposta devo verificare?",
+  "Progettisti / Specifiers",
+  "Industry – Manifatturiera",
+  "90 MCB – Interruttori modulari per protezione circuiti"
+ ],
+ [
+  "Quali caratteristiche degli interruttori magnetotermici modulari devo verificare per garantire una corretta selettività con le protezioni a monte e a valle in un impianto industriale?",
+  "Progettisti / Specifiers",
+  "Industry – Ambienti produttivi industriali",
+  "90 MCB – Interruttori modulari per protezione circuiti"
+ ],
+ [
+  "Nella specifica degli interruttori magnetotermici per una struttura ricettiva, quali parametri conviene privilegiare per bilanciare costo iniziale, sicurezza e affidabilità nel lungo periodo con una manutenzione ridotta?",
+  "Progettisti / Specifiers",
+  "Hospitality – Strutture ricettive",
+  "90 MCB – Interruttori modulari per protezione circuiti"
+ ],
+ [
+  "Come dimensionare potere di interruzione e riserve delle protezioni modulari nel progetto di un polo logistico, in modo che l'impianto possa accogliere futuri aumenti di carico senza dover rifare i quadri?",
+  "Progettisti / Specifiers",
+  "Industry – Logistica",
+  "90 MCB – Interruttori modulari per protezione circuiti"
+ ],
+ [
+  "In un impianto produttivo in cui un fermo dovuto allo scatto intempestivo del differenziale è critico, quali soluzioni permettono di ripristinare automaticamente l'alimentazione e di testare periodicamente il differenziale senza togliere tensione?",
+  "Progettisti / Specifiers",
+  "Industry – Ambienti produttivi industriali",
+  "ReStart Autotest PRO – Riarmo automatico con test periodico del differenziale"
+ ],
+ [
+  "Quali limiti e possibili problemi devo valutare prima di specificare dispositivi di riarmo automatico come GEWISS ReStart a protezione dei circuiti di una struttura ricettiva?",
+  "Progettisti / Specifiers",
+  "Hospitality – Strutture ricettive",
+  "ReStart – Dispositivi di riarmo automatico"
+ ],
+ [
+  "Quali valori di potere di interruzione e quali regolazioni delle soglie di intervento devo considerare nella specifica di interruttori scatolati per la distribuzione di potenza in uno stabilimento dell'industria pesante?",
+  "Progettisti / Specifiers",
+  "Industry – Industria pesante",
+  "MSX – Interruttori scatolati per distribuzione di potenza"
+ ],
+ [
+  "Per un progetto di distribuzione industriale basato su interruttori scatolati, che supporto tecnico posso aspettarmi da produttore o distributore per la distinta materiali e per lo studio di coordinamento delle protezioni?",
+  "Progettisti / Specifiers",
+  "Industry – Ambienti produttivi industriali",
+  "MSX – Interruttori scatolati per distribuzione di potenza"
+ ],
+ [
+  "Quali passaggi seguire per progettare un quadro di distribuzione secondaria in bassa tensione per un ambiente industriale, e come scegliere tra soluzione monoblocco e componibile in base al grado di protezione richiesto?",
+  "Progettisti / Specifiers",
+  "Industry – Ambienti produttivi industriali",
+  "QDX 630 H – Quadri monoblocco e componibili fino a 630 A (IP55)"
+ ],
+ [
+  "In uno stabilimento con più zone produttive, come strutturare la distribuzione tra quadro primario in bassa tensione e armadi secondari per ottenere selettività tra le zone e facilitare futuri ampliamenti?",
+  "Progettisti / Specifiers",
+  "Industry – Ambienti produttivi industriali",
+  "QDX 4000 H – Quadri primari in bassa tensione"
+ ],
+ [
+  "Per il quadro primario in bassa tensione di uno stabilimento manifatturiero, quando conviene affidarsi a configurazioni personalizzate, montate e cablate dal produttore, invece di soluzioni standard, e che supporto è previsto lungo l'intero ciclo di vita del quadro?",
+  "Progettisti / Specifiers",
+  "Industry – Manifatturiera",
+  "QDX 4000 H – Quadri primari in bassa tensione"
+ ],
+ [
+  "Per la distribuzione elettrica di un impianto sportivo, quali caratteristiche rendono un sistema di quadri componibili davvero espandibile e predisposto ad accogliere nuove utenze e funzioni di monitoraggio?",
+  "Progettisti / Specifiers",
+  "Sports – Strutture sportive",
+  "QDX 630 L – Quadri componibili fino a 630 A (IP43)"
+ ],
+ [
+  "Nella specifica del quadro di distribuzione di un edificio per uffici, quali verifiche fare sulla compatibilità tra carpenteria e apparecchi modulari e scatolati, per evitare problemi in fase di montaggio e di ampliamento?",
+  "Progettisti / Specifiers",
+  "Office",
+  "Energy – Sistema di protezione integrato (apparecchi modulari, scatolati e quadri)"
+ ],
+ [
+  "Con quali criteri tecnici valutare un sistema di distribuzione a barre per quadri in un impianto manifatturiero, in termini di affidabilità nel lungo periodo, sicurezza e facilità di manutenzione?",
+  "Progettisti / Specifiers",
+  "Industry – Manifatturiera",
+  "BUSBAR – Sistemi di distribuzione per quadri"
+ ],
+ [
+  "Come scegliere il sezionatore generale di un quadro di distribuzione in un sito minerario: in quali casi è preferibile un interruttore di manovra-sezionatore rotativo e quali requisiti di sicurezza deve soddisfare?",
+  "Progettisti / Specifiers",
+  "Industry – Mineraria",
+  "97 MSS – Interruttori di manovra sezionatori rotativi"
+ ],
+ [
+  "Come scegliere il grado di protezione IP di quadri e armadi destinati a un ambiente dell'industria pesante con polvere e presenza d'acqua, e quali altri requisiti ambientali considerare oltre all'IP?",
+  "Progettisti / Specifiers",
+  "Industry – Industria pesante",
+  "QDX 1600 H – Armadi componibili fino a 1600 A (IP55)"
+ ],
+ [
+  "Quando conviene specificare cassette di derivazione stagne in metallo anziché in tecnopolimero in un sito minerario, tenendo conto di resistenza meccanica, condizioni ambientali difficili e durata?",
+  "Progettisti / Specifiers",
+  "Industry – Mineraria",
+  "GW Connect – Cassette di derivazione stagne da parete in metallo"
+ ],
+ [
+  "Per cassette e involucri installati all'aperto in un campeggio, quanto incide la resistenza ai raggi UV del materiale sulla durata nel tempo e quali requisiti conviene indicare in capitolato?",
+  "Progettisti / Specifiers",
+  "Hospitality – Campeggi",
+  "44 CE – Cassette di derivazione stagne da parete in tecnopolimero"
+ ],
+ [
+  "Nel progetto delle vie cavi di una struttura ricettiva, quali criteri usare per specificare passerelle portacavi in filo d'acciaio saldato, considerando portata, futuri ampliamenti e integrazione estetica negli spazi a vista?",
+  "Progettisti / Specifiers",
+  "Hospitality – Strutture ricettive",
+  "BFR – Passerelle portacavi MAVIL in filo di acciaio saldato"
+ ],
+ [
+  "Nel progetto dell'impianto elettrico di una casa con domotica, come prevedere fin dall'inizio colonne d'impianto dedicate a distribuzione, domotica e dati, per facilitare aggiornamenti futuri?",
+  "Progettisti / Specifiers",
+  "Residenziale",
+  "DOMO CENTER – Colonne d'impianto da incasso per distribuzione, domotica e dati"
+ ],
+ [
+  "Quali funzioni di monitoraggio e riduzione dei consumi conviene prevedere nel progetto di un sistema di home automation residenziale, e come predisporlo per integrare nuovi dispositivi in futuro?",
+  "Progettisti / Specifiers",
+  "Residenziale",
+  "Home Automation GEWISS"
+ ],
+ [
+  "Nel progetto di un edificio terziario, che differenza c'è tra un sistema BMS e un sistema BACS, e a cosa servono i fattori BACS nella valutazione dell'efficienza energetica?",
+  "Progettisti / Specifiers",
+  "Retail – Terziario",
+  "Building Automation GEWISS"
+ ],
+ [
+  "Come descrivere in capitolato la voce di fornitura e posa in opera di un sistema di building automation per un polo logistico, in modo che sia confrontabile con le voci dei prezzari regionali?",
+  "Progettisti / Specifiers",
+  "Industry – Logistica",
+  "Building Automation GEWISS"
+ ],
+ [
+  "Nella progettazione della building automation di un hotel, con quali criteri scegliere una piattaforma smart building aperta e scalabile, capace di integrare nuovi sistemi nel tempo?",
+  "Progettisti / Specifiers",
+  "Hospitality – Hotel e ristoranti",
+  "GEWISS & ThinKNX – Smart building aperta e scalabile"
+ ],
+ [
+  "In una struttura sanitaria, come progettare un sistema che gestisca illuminazione, temperatura e accessi ai locali da un unico punto e che consenta anche di monitorare i consumi energetici?",
+  "Progettisti / Specifiers",
+  "Healthcare",
+  "Sistema domotico GEWISS (Smart Home & Building)"
+ ],
+ [
+  "Nel progetto di un museo o di una biblioteca, come integrare la building automation degli impianti termici ed elettrici per tutelare le opere conservate senza sacrificare il comfort di visitatori e operatori?",
+  "Progettisti / Specifiers",
+  "Hospitality – Musei e biblioteche",
+  "Sistema domotico GEWISS (Smart Home & Building)"
+ ],
+ [
+  "Per una struttura ricettiva, quali funzioni deve offrire un sistema integrato di controllo accessi e supervisione, e come si integra con la gestione di luci, tapparelle, clima e consumi delle camere?",
+  "Progettisti / Specifiers",
+  "Hospitality – Strutture ricettive",
+  "GWHOST – Controllo accessi, supervisione e gestione delle strutture ricettive"
+ ],
+ [
+  "Quali criteri di progettazione illuminotecnica e di gestione intelligente della luce considerare per un teatro, conciliando sicurezza, comfort, sostenibilità e atmosfere suggestive?",
+  "Progettisti / Specifiers",
+  "Hospitality – Teatri",
+  "Lighting – Sistemi di illuminazione intelligenti"
+ ],
+ [
+  "Quali tecnologie di gestione intelligente dell'illuminazione pubblica valutare nella riqualificazione dell'illuminazione urbana, e con quali criteri confrontare i fornitori?",
+  "Progettisti / Specifiers",
+  "City Landscape",
+  "Lighting – Sistemi di illuminazione intelligenti"
+ ],
+ [
+  "In un intervento di relamping LED di uno stabilimento, come impostare il progetto per ridurre i consumi senza peggiorare le condizioni di luce e la sicurezza degli operatori?",
+  "Progettisti / Specifiers",
+  "Industry – Ambienti produttivi industriali",
+  "Lighting – Relamping industriale LED"
+ ],
+ [
+  "Quali requisiti normativi e di comfort visivo considerare nel progetto dell'illuminazione a LED di un ufficio con postazioni al videoterminale?",
+  "Progettisti / Specifiers",
+  "Office",
+  "Lighting – Apparecchi a LED per illuminazione confortevole ed efficiente"
+ ],
+ [
+  "Quali aspetti considerare nel progetto di stazioni di ricarica per veicoli elettrici in un hotel con ristorante, per integrarle con la gestione intelligente dell'energia dell'edificio?",
+  "Progettisti / Specifiers",
+  "Hospitality – Hotel e ristoranti",
+  "Mobility – JOINON"
+ ],
+ [
+  "Quali riferimenti normativi e passaggi autorizzativi considerare nel progetto di un'infrastruttura di ricarica per veicoli elettrici nel parcheggio di un hotel?",
+  "Progettisti / Specifiers",
+  "Hospitality – Hotel e ristoranti",
+  "Mobility – JOINON"
+ ],
+ [
+  "Come integrare punti di ricarica per veicoli elettrici nella distribuzione dell'energia di un campeggio, prevedendo la possibilità di aggiungere nuove postazioni in futuro, e con quali criteri confrontare le soluzioni disponibili?",
+  "Progettisti / Specifiers",
+  "Hospitality – Campeggi",
+  "Mobility – JOINON"
+ ],
+ [
+  "Nella progettazione delle protezioni di un impianto fotovoltaico, quali prodotti modulari prevedere nei quadri e in quali casi è obbligatorio installare scaricatori di sovratensione?",
+  "Progettisti / Specifiers",
+  "Impianti fotovoltaici",
+  "90 PV – Prodotti per impianti fotovoltaici"
+ ],
+ [
+  "Quali accessori modulari su guida DIN conviene prevedere nei quadri di un polo logistico per segnalazione e comando a distanza, in vista di una futura integrazione con la building automation?",
+  "Progettisti / Specifiers",
+  "Industry – Logistica",
+  "90 AM – Accessori modulari"
+ ],
+ [
+  "Per un progetto industriale da replicare in più paesi, come gestire nei quadri di distribuzione le differenze tra standard nazionali, scegliendo centralini conformi alle specifiche di ciascun paese?",
+  "Progettisti / Specifiers",
+  "Industry – Ambienti produttivi industriali",
+  "40 CDE – Centralini e quadri di distribuzione specifici di paese"
+ ],
+ [
+  "Prima di riqualificare l'impianto elettrico di uno stabilimento, come impostare un audit energetico sullo stato di fatto e sui consumi, e quali dati servono per decidere le priorità d'intervento?",
+  "Progettisti / Specifiers",
+  "Industry – Ambienti produttivi industriali",
+  "Servizio – Audit Energetico Gratuito"
+ ],
+ [
+  "Quali requisiti di sicurezza e di conformità normativa guidano la progettazione dell'impianto elettrico di uno stabilimento, e come si traducono nella scelta coordinata di apparecchi modulari, scatolati e quadri?",
+  "Progettisti / Specifiers",
+  "Industry – Ambienti produttivi industriali",
+  "Energy – Sistema di protezione integrato (apparecchi modulari, scatolati e quadri)"
+ ],
+ [
+  "Nel progetto dell'impianto elettrico di un edificio per uffici, quali aspetti della norma CEI 64-8 incidono di più sulla scelta e sul coordinamento delle protezioni differenziali e magnetotermiche?",
+  "Progettisti / Specifiers",
+  "Office",
+  "Energy – Sistema di protezione integrato (apparecchi modulari, scatolati e quadri)"
+ ],
+ [
+  "Nel progetto delle prese di servizio di una struttura ricettiva, quando specificare prese interbloccate con protezione magnetotermica integrata e quando con interruttore rotativo e protezione a fusibili?",
+  "Progettisti / Specifiers",
+  "Hospitality – Strutture ricettive",
+  "IB – Prese interbloccate a norme IEC 309"
+ ],
+ [
+  "Nel progetto di un boutique hotel, come scegliere comandi e dispositivi della smart building che rispettino i requisiti estetici degli interni senza rinunciare a funzionalità e supervisione?",
+  "Progettisti / Specifiers",
+  "Hospitality – Hotel e ristoranti",
+  "Sistema domotico GEWISS (Smart Home & Building)"
+ ],
+ [
+  "Nel progetto della distribuzione elettrica di uno stabilimento alimentare, quali requisiti di robustezza e di grado di protezione considerare per quadri e involucri installati nelle aree di lavorazione?",
+  "Progettisti / Specifiers",
+  "Industry – Alimentare",
+  "46 – Quadri stagni da parete per automazione e distribuzione"
+ ],
+ [
+  "Per un'abitazione, quando è obbligatorio il progetto dell'impianto elettrico e quali scelte progettuali facilitano l'integrazione futura di funzioni di home automation?",
+  "Progettisti / Specifiers",
+  "Residenziale",
+  "Home Automation GEWISS"
+ ],
+ [
+  "Come integrare nel progetto di un edificio terziario protezione elettrica, automazione e comunicazione, in modo che i dati di consumo raccolti dai quadri siano disponibili alla piattaforma di building automation?",
+  "Progettisti / Specifiers",
+  "Retail – Terziario",
+  "Building Automation GEWISS"
+ ],
+ [
+  "Quali requisiti di sicurezza e di grado di protezione prevedere nel progetto dell'impianto elettrico di cantiere, dal quadro di alimentazione fino ai quadri di distribuzione e alle prese?",
+  "Progettisti / Specifiers",
+  "Cantiere",
+  "68 ASC – Sistema di quadri per il cantiere"
+ ],
+ [
+  "Come progettare per un B&B un sistema domotico che dia agli ospiti accesso tramite app solo per la durata del soggiorno, lasciando al gestore il monitoraggio completo degli spazi?",
+  "Progettisti / Specifiers",
+  "Hospitality – B&B e piccole strutture ricettive",
+  "App Home Gateway – Accesso a tempo"
+ ],
+ [
+  "In un edificio per uffici, con quali criteri scegliere tra quadri di distribuzione da incasso e da parete fino a 160 A, considerando estetica, spazio disponibile e ampliamenti futuri?",
+  "Progettisti / Specifiers",
+  "Office",
+  "47 CVX 160 I – Quadri da incasso fino a 160 A"
+ ],
+ [
+  "Quando sostituisco un differenziale di tipo AC in un appartamento, come capisco se serve un tipo A o un tipo F e cosa devo controllare sui circuiti prima dell'installazione?",
+  "Installatori / Installers",
+  "Residenziale",
+  "90 RCD – Interruttori modulari per protezione differenziale"
+ ],
+ [
+  "Come spiego al cliente di un'abitazione la differenza tra magnetotermico e differenziale, e come verifico in pratica che il differenziale intervenga correttamente dopo averlo installato?",
+  "Installatori / Installers",
+  "Residenziale",
+  "90 RCD – Interruttori modulari per protezione differenziale"
+ ],
+ [
+  "Un interruttore differenziale protegge davvero dai contatti indiretti in un impianto senza messa a terra? Come mi devo comportare quando trovo questa situazione intervenendo su un impianto esistente in un'abitazione?",
+  "Installatori / Installers",
+  "Residenziale",
+  "90 RCD – Interruttori modulari per protezione differenziale"
+ ],
+ [
+  "Su un magnetotermico trifase da 32 A, che corrente passa su ogni fase, e quando conviene installare un tetrapolare invece di un tripolare per alimentare una macchina in officina?",
+  "Installatori / Installers",
+  "Industry – Manifatturiera",
+  "90 MCB – Interruttori modulari per protezione circuiti"
+ ],
+ [
+  "Che tipo di interruttore devo installare per proteggere la linea di un condizionatore in una camera d'albergo, e come lo coordino con il differenziale a monte?",
+  "Installatori / Installers",
+  "Hospitality – Strutture ricettive",
+  "90 MCB – Interruttori modulari per protezione circuiti"
+ ],
+ [
+  "Come leggo le curve di intervento di un magnetotermico, e quale curva scegliere per alimentare macchine con forti picchi di corrente all'avvio in un impianto dell'industria pesante?",
+  "Installatori / Installers",
+  "Industry – Industria pesante",
+  "90 MCB – Interruttori modulari per protezione circuiti"
+ ],
+ [
+  "Come si installa e si cabla un dispositivo di riarmo automatico abbinato a un differenziale da 40 A, e quanto spazio in moduli devo prevedere nel centralino di una struttura ricettiva?",
+  "Installatori / Installers",
+  "Hospitality – Strutture ricettive",
+  "ReStart – Dispositivi di riarmo automatico"
+ ],
+ [
+  "Come funzionano i differenziali a riarmo automatico con autotest in un impianto industriale, e cosa devo verificare in fase di messa in servizio per essere sicuro che il riarmo avvenga solo in condizioni sicure?",
+  "Installatori / Installers",
+  "Industry – Ambienti produttivi industriali",
+  "ReStart Autotest PRO – Riarmo automatico con test periodico del differenziale"
+ ],
+ [
+  "Quando conviene montare su un interruttore modulare una bobina di sgancio a lancio di corrente invece di una a minima tensione, e come la cablo correttamente in un quadro industriale?",
+  "Installatori / Installers",
+  "Industry – Ambienti produttivi industriali",
+  "90 AM – Accessori modulari"
+ ],
+ [
+  "Quando aggiungo un interruttore scatolato nel quadro esistente di un'azienda manifatturiera, quali accessori e configurazioni di montaggio devo verificare per integrarlo rapidamente e in sicurezza?",
+  "Installatori / Installers",
+  "Industry – Manifatturiera",
+  "MSX – Interruttori scatolati per distribuzione di potenza"
+ ],
+ [
+  "Che vantaggi offre in fase di cablaggio un quadro da parete fino a 160 A con telaio estraibile, e come organizzo il lavoro per ridurre i tempi di installazione in un ufficio?",
+  "Installatori / Installers",
+  "Office",
+  "47 CVX 160 E – Quadri da parete fino a 160 A con telaio estraibile"
+ ],
+ [
+  "Per una piccola struttura ricettiva, come scelgo un centralino di distribuzione da parete con un buon rapporto qualità/prezzo e spazio sufficiente per aggiungere circuiti in futuro?",
+  "Installatori / Installers",
+  "Hospitality – Strutture ricettive",
+  "40 CD – Centralini e quadri di distribuzione da parete"
+ ],
+ [
+  "Come scegliere e cablare un quadro stagno da parete per automazione e distribuzione in un'area di lavorazione dell'industria alimentare, riducendo tempi di posa e rischio di errori?",
+  "Installatori / Installers",
+  "Industry – Alimentare",
+  "46 – Quadri stagni da parete per automazione e distribuzione"
+ ],
+ [
+  "Come si assembla e si cabla un quadro componibile di distribuzione fino a 630 A per un'officina manifatturiera, e quali passaggi seguire per ridurre tempi e rischio di errori?",
+  "Installatori / Installers",
+  "Industry – Manifatturiera",
+  "QDX 630 L – Quadri componibili fino a 630 A (IP43)"
+ ],
+ [
+  "Per alimentare utensili e macchine in un capannone, conviene installare un quadro con prese interbloccate già cablato o assemblare prese e interruttori separati? Cosa cambia per tempi di cablaggio e sicurezza?",
+  "Installatori / Installers",
+  "Industry – Ambienti produttivi industriali",
+  "68 Q-DIN – Quadri per distribuzione"
+ ],
+ [
+  "Per sezionare una macchina in officina, una presa a spina industriale è un dispositivo di sezionamento idoneo oppure è meglio installare un interruttore sezionatore rotativo dedicato?",
+  "Installatori / Installers",
+  "Industry – Manifatturiera",
+  "70 RT HP – Interruttori sezionatori rotativi"
+ ],
+ [
+  "Quando installo prese industriali IEC 309 fino a 32 A, in quali casi la CEI 64-8 richiede la protezione differenziale addizionale da 30 mA e come la organizzo nel quadro?",
+  "Installatori / Installers",
+  "Industry – Ambienti produttivi industriali",
+  "IEC 309 HP – Prese e spine a norme IEC 309"
+ ],
+ [
+  "Come organizzo l'impianto elettrico di un cantiere con un sistema di quadri dedicati: quali quadri servono, come si collegano tra loro e cosa controllare per la sicurezza di chi ci lavora?",
+  "Installatori / Installers",
+  "Cantiere",
+  "68 ASC – Sistema di quadri per il cantiere"
+ ],
+ [
+  "Come posso evitare ritardi in cantiere dovuti alla mancanza di materiale elettrico? Conviene standardizzare quadri e prese da cantiere su gamme facilmente reperibili presso i distributori locali?",
+  "Installatori / Installers",
+  "Cantiere",
+  "68 ASC – Sistema di quadri per il cantiere"
+ ],
+ [
+  "Come leggo il codice IP di una cassetta di derivazione, e quale grado scegliere per installazioni all'esterno di un campeggio, a parete o su palo, esposte a pioggia e polvere?",
+  "Installatori / Installers",
+  "Hospitality – Campeggi",
+  "44 CE – Cassette di derivazione stagne da parete in tecnopolimero"
+ ],
+ [
+  "Per una cassetta di derivazione stagna in metallo a più vie in un magazzino logistico, come preparo ingressi e raccordi per mantenere la tenuta senza allungare i tempi di posa?",
+  "Installatori / Installers",
+  "Industry – Logistica",
+  "GW Connect – Cassette di derivazione stagne da parete in metallo"
+ ],
+ [
+  "Con i tubi protettivi rigidi posati a vista in un capannone industriale, come gestisco curve e cambi di direzione riducendo attrezzi e tempi di posa?",
+  "Installatori / Installers",
+  "Industry – Ambienti produttivi industriali",
+  "RK – Sistemi di tubi protettivi rigidi"
+ ],
+ [
+  "Quando è meglio una guaina spiralata in PVC antiurto rispetto a un tubo flessibile standard per collegare le macchine di un reparto produttivo, e come scelgo i raccordi giusti?",
+  "Installatori / Installers",
+  "Industry – Manifatturiera",
+  "DF – Sistemi di tubi protettivi flessibili"
+ ],
+ [
+  "Per un impianto sottotraccia in un'abitazione, cosa valutare nella scelta del tubo corrugato pieghevole, come diametro e resistenza, per lavorare velocemente e senza problemi di infilaggio dei cavi?",
+  "Installatori / Installers",
+  "Residenziale",
+  "FK – Sistemi di tubi protettivi pieghevoli"
+ ],
+ [
+  "Quali collari e accessori di fissaggio usare per fissare rapidamente i tubi protettivi a parete o a soffitto in un magazzino, riducendo il numero di attrezzi necessari?",
+  "Installatori / Installers",
+  "Industry – Logistica",
+  "GW FIT – Accessori per installazione elettrica"
+ ],
+ [
+  "Per stendere linee di potenza pesanti in uno stabilimento dell'industria pesante, come si posano passerelle portacavi heavy-load e relativi supporti in modo rapido e sicuro?",
+  "Installatori / Installers",
+  "Industry – Industria pesante",
+  "BRN HL – Passerelle portacavi MAVIL Heavy-Load"
+ ],
+ [
+  "In un hotel, come installo passerelle portacavi in filo d'acciaio saldato e quali accessori permettono di realizzare derivazioni e curve con pochi attrezzi e senza lavorazioni complicate?",
+  "Installatori / Installers",
+  "Hospitality – Strutture ricettive",
+  "BFR – Passerelle portacavi MAVIL in filo di acciaio saldato"
+ ],
+ [
+  "Come installare scatole e centralini da incasso nelle pareti in cartongesso di un ufficio garantendo un fissaggio stabile e tempi di posa ridotti?",
+  "Installatori / Installers",
+  "Office",
+  "Green Wall – Sistema da incasso per pareti leggere e cartongesso"
+ ],
+ [
+  "Nelle cassette di derivazione da incasso di un'abitazione, come tengo separati i circuiti di energia dalle linee dati e telefoniche, e quali coperchi e accessori scegliere?",
+  "Installatori / Installers",
+  "Residenziale",
+  "48 – Sistema di cassette di derivazione da incasso"
+ ],
+ [
+  "Per un impianto civile in un'abitazione, quali scatole da incasso, da parete o da pavimento per serie civili scegliere in base al tipo di parete e al punto di installazione?",
+  "Installatori / Installers",
+  "Residenziale",
+  "24 SC – Scatole da incasso, da parete e da pavimento per serie civili"
+ ],
+ [
+  "Quando devo adeguare l'impianto elettrico di una casa datata, quali interventi su quadro e protezioni sono di solito prioritari per metterlo a norma, e come stimo i tempi di lavoro?",
+  "Installatori / Installers",
+  "Residenziale",
+  "Energy – Sistema di protezione integrato (apparecchi modulari, scatolati e quadri)"
+ ],
+ [
+  "Al termine di un intervento di efficientamento in uno stabilimento, come si svolgono collaudo e certificazione del risparmio energetico ottenuto, e quale documentazione devo preparare insieme alla dichiarazione di conformità?",
+  "Installatori / Installers",
+  "Industry – Ambienti produttivi industriali",
+  "Servizio – Collaudo e certificazione"
+ ],
+ [
+  "Per lavori in ambito residenziale, dove posso reperire rapidamente centralini di distribuzione da incasso presso i distributori locali, e che tipo di supporto post-vendita posso aspettarmi dal produttore?",
+  "Installatori / Installers",
+  "Residenziale",
+  "40 CDI – Centralini e quadri di distribuzione da incasso"
+ ],
+ [
+  "Come integrare il controllo del clima in un impianto di home automation già presente in un appartamento senza dover rifare il cablaggio?",
+  "Installatori / Installers",
+  "Residenziale",
+  "Home Automation GEWISS"
+ ],
+ [
+  "In un B&B, come configuro il sistema domotico in modo che gli ospiti possano gestire via app accesso, luci e tapparelle solo per la durata del loro soggiorno?",
+  "Installatori / Installers",
+  "Hospitality – B&B e piccole strutture ricettive",
+  "App Home Gateway – Accesso a tempo"
+ ],
+ [
+  "Quali sono i passaggi per installare e mettere in servizio un sistema domotico in un hotel già operativo, limitando i disagi per gli ospiti e il fermo delle camere?",
+  "Installatori / Installers",
+  "Hospitality – Hotel e ristoranti",
+  "Sistema domotico GEWISS (Smart Home & Building)"
+ ],
+ [
+  "Quanto tempo e quali competenze servono per installare e configurare un sistema di building automation in un negozio, e come organizzo cablaggio e programmazione per ridurre gli errori?",
+  "Installatori / Installers",
+  "Retail – Terziario",
+  "Building Automation GEWISS"
+ ],
+ [
+  "Quali passaggi seguire nella posa in opera di un sistema di building automation per gli impianti termici ed elettrici di uno stabilimento manifatturiero, e come verificarne il funzionamento prima della consegna?",
+  "Installatori / Installers",
+  "Industry – Manifatturiera",
+  "Building Automation GEWISS"
+ ],
+ [
+  "Quali verifiche fare sull'impianto esistente di un ristorante prima di installare colonnine di ricarica per i clienti, e quanto tempo richiedono di solito installazione e messa in servizio?",
+  "Installatori / Installers",
+  "Hospitality – Hotel e ristoranti",
+  "Mobility – JOINON"
+ ],
+ [
+  "Come funziona in pratica una soluzione di ricarica chiavi in mano per un hotel: cosa resta a carico di chi realizza l'impianto elettrico e quale supporto post-vendita è previsto?",
+  "Installatori / Installers",
+  "Hospitality – Hotel e ristoranti",
+  "Mobility – JOINON"
+ ],
+ [
+  "Per installare punti di ricarica per i veicoli aziendali in uno stabilimento alimentare, cosa devo verificare su quadro e linee di alimentazione prima di iniziare i lavori?",
+  "Installatori / Installers",
+  "Industry – Alimentare",
+  "Mobility – JOINON"
+ ],
+ [
+  "Quale soluzione di ricarica per veicoli elettrici è più semplice da installare in un campeggio, considerando posa all'esterno, alimentazione delle colonnine e possibilità di aggiungerne altre in seguito?",
+  "Installatori / Installers",
+  "Hospitality – Campeggi",
+  "Mobility – JOINON"
+ ],
+ [
+  "Come cablo correttamente i dispositivi di protezione nel quadro di un impianto fotovoltaico, scaricatori di sovratensione compresi, e quali errori evitare nei collegamenti?",
+  "Installatori / Installers",
+  "Impianti fotovoltaici",
+  "90 PV – Prodotti per impianti fotovoltaici"
+ ],
+ [
+  "Durante un relamping LED in un capannone, quali accorgimenti di sicurezza e di fissaggio seguire per sostituire gli apparecchi in quota in modo rapido?",
+  "Installatori / Installers",
+  "Industry – Ambienti produttivi industriali",
+  "Lighting – Relamping industriale LED"
+ ],
+ [
+  "Per alimentare le aree esterne di un impianto sportivo, come tribune e parcheggi, quali quadri stagni da parete scegliere e come organizzare il cablaggio per poter aggiungere circuiti in futuro?",
+  "Installatori / Installers",
+  "Sports – Strutture sportive",
+  "46 – Quadri stagni da parete per automazione e distribuzione"
+ ],
+ [
+  "Nel quadro di automazione di una macchina, come scelgo e cablo pulsanti, selettori e spie da 22 mm in modo rapido e con un basso rischio di errori?",
+  "Installatori / Installers",
+  "Industry – Manifatturiera",
+  "74 PS – Pulsanti, selettori e segnalatori Ø 22 mm"
+ ],
+ [
+  "Come verifico sul campo il corretto coordinamento tra un differenziale selettivo a monte e i differenziali a valle, per evitare che un singolo guasto spenga un'intera struttura sportiva?",
+  "Installatori / Installers",
+  "Sports – Strutture sportive",
+  "90 RCD – Interruttori modulari per protezione differenziale"
+ ],
+ [
+  "Come si installa un sistema di distribuzione a barre in un quadro, e quanto semplifica i cablaggi quando in un magazzino devo aggiungere nuovi interruttori dopo la prima installazione?",
+  "Installatori / Installers",
+  "Industry – Logistica",
+  "BUSBAR – Sistemi di distribuzione per quadri"
+ ],
+ [
+  "Come scelgo il raccordo giusto per una guaina flessibile, girevole o diritto, metallico o in poliammide, per mantenere il grado di protezione richiesto in un impianto industriale senza allungare i tempi di montaggio?",
+  "Installatori / Installers",
+  "Industry – Ambienti produttivi industriali",
+  "DF – Sistemi di tubi protettivi flessibili"
+ ],
+ [
+  "Quali accessori per installazione elettrica, come i dadi con vite di messa a terra, servono per completare correttamente una posa in ambito industriale, e come leggo sigle e utilizzi di ciascuno?",
+  "Installatori / Installers",
+  "Industry – Ambienti produttivi industriali",
+  "GW FIT – Accessori per installazione elettrica"
+ ],
+ [
+  "Per l'impianto elettrico di un garage in un'abitazione, quali cassette di derivazione stagne da parete e quale grado di protezione scegliere, e come posarle rapidamente?",
+  "Installatori / Installers",
+  "Residenziale",
+  "44 CE – Cassette di derivazione stagne da parete in tecnopolimero"
+ ],
+ [
+  "Quando conviene installare in un appartamento un magnetotermico differenziale compatto 1P+N invece di due apparecchi separati, e cosa indicano sul dispositivo valori come 4,5 kA o 6 kA?",
+  "Installatori / Installers",
+  "Residenziale",
+  "90 MCB – Interruttori modulari per protezione circuiti"
+ ]
+]
