@@ -84,6 +84,8 @@ export interface RunConfigFieldsProps {
   profilesError: boolean
   onRetryProfiles: () => void
   domainPersonas: Persona[]
+  /** Domain's target URL, shown when the run uses "Stesso URL del progetto". */
+  targetDomain?: string
   domainGroups: PersonaGroup[]
   isAddingPersona: boolean
   onAddPersona: (persona: { name: string; description: string; context: string; searchStyle?: string }) => Promise<void>
@@ -101,6 +103,7 @@ export default function RunConfigFields({
   profilesError,
   onRetryProfiles,
   domainPersonas,
+  targetDomain,
   domainGroups,
   isAddingPersona,
   onAddPersona,
@@ -214,6 +217,14 @@ export default function RunConfigFields({
               </ToggleButtonGroup>
             )}
           />
+          {!useCustomTargetUrl && targetDomain && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+              Verrà analizzato:{' '}
+              <Box component="span" sx={{ fontFamily: 'var(--geo-font-mono)', color: 'text.primary' }}>
+                {targetDomain}
+              </Box>
+            </Typography>
+          )}
           {useCustomTargetUrl && (
             <TextField
               label="URL da analizzare"

@@ -43,6 +43,15 @@ describe('SingleRunForm — target URL override', () => {
     })
   })
 
+  it('shows which URL will be analysed, and hides it when a different URL is chosen', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    expect(await screen.findByText(/Verrà analizzato:/i)).toHaveTextContent('acme.com')
+    await user.click(screen.getByRole('button', { name: 'URL diverso' }))
+    expect(screen.queryByText(/Verrà analizzato:/i)).not.toBeInTheDocument()
+  })
+
   it('defaults to "Stesso URL del progetto" and omits targetUrl from the payload', async () => {
     ;(createRun as jest.Mock).mockResolvedValue({ data: { runId: 'run-1', status: 'running' } })
     const user = userEvent.setup()

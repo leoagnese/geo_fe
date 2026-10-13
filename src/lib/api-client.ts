@@ -80,6 +80,7 @@ export interface CreateDomainDto {
 }
 
 export interface UpdateDomainDto {
+  targetDomain?: string
   brand?: string
   aliases?: string[]
   keywords?: string[]

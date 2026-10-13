@@ -310,6 +310,7 @@ function SingleRunForm({ clientKey }: { clientKey: string }) {
             profilesError={profilesError}
             onRetryProfiles={() => void refetchProfiles()}
             domainPersonas={domainPersonas}
+            targetDomain={domainData?.data?.targetDomain}
             domainGroups={domainGroups}
             isAddingPersona={isAddingPersona}
             onAddPersona={handleAddPersonaSubmit}

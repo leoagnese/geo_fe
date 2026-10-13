@@ -2,7 +2,7 @@
  * SC-013 — Edit domain form.
  *
  * Same form as SC-011 but clientKey is read-only (locked field).
- * Only brand, aliases, settori are editable.
+ * Editable: targetDomain, brand, aliases, keywords.
  * PATCH /domains/:clientKey on submit. Success toast → redirect to domain homepage.
  *
  * States:
@@ -40,6 +40,7 @@ import { brandFieldHelp } from '@/lib/brandInput'
 import { getDomain, updateDomain, ApiError } from '@/lib/api-client'
 
 const EditDomainSchema = z.object({
+  targetDomain: z.string().trim().min(1, 'Dominio target è obbligatorio'),
   brand: z.string().min(1, 'Brand è obbligatorio'),
   aliases: z.array(z.string()).default([]),
   keywords: z.array(z.string()).default([]),
@@ -82,7 +83,7 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
     formState: { errors, isSubmitting, isDirty },
   } = useForm<EditDomainForm>({
     resolver: zodResolver(EditDomainSchema),
-    defaultValues: { brand: '', aliases: [], keywords: [] },
+    defaultValues: { targetDomain: '', brand: '', aliases: [], keywords: [] },
   })
 
   const brandHelp = brandFieldHelp(watch('brand') ?? '')
@@ -92,6 +93,7 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
   useEffect(() => {
     if (domain && !isDirty) {
       reset({
+        targetDomain: domain.targetDomain,
         brand: domain.brand,
         aliases: domain.aliases ?? [],
         keywords: domain.keywords ?? [],
@@ -102,6 +104,7 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
   const updateMutation = useMutation({
     mutationFn: (data: EditDomainForm) =>
       updateDomain(session?.accessToken ?? '', clientKey, {
+        targetDomain: data.targetDomain,
         brand: data.brand,
         aliases: data.aliases,
         keywords: data.keywords,
@@ -154,6 +157,18 @@ export default function EditDomainPage({ params }: EditDomainPageProps) {
           helperText="Il clientKey non può essere modificato dopo la creazione."
           InputProps={{ sx: { fontFamily: 'var(--geo-font-mono)' } }}
         />
+
+        {/* targetDomain — the URL analysed by runs using "Stesso URL del progetto" */}
+        {isLoading ? (
+          <Skeleton variant="rounded" height={56} />
+        ) : (
+          <TextField
+            label="Dominio target"
+            {...register('targetDomain')}
+            error={!!errors.targetDomain}
+            helperText={errors.targetDomain?.message ?? 'URL analizzato dalle run con «Stesso URL del progetto». Es. caffevergnano.com'}
+          />
+        )}
 
         {/* brand */}
         {isLoading ? (
